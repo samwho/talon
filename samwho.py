@@ -16,7 +16,7 @@ class Actions:
     def correct(phrase: list[str]):
         """Correct a word"""
         idx = actions.user.find_phrase(phrase)
-        if not idx:
+        if idx is None:
             return
 
         actions.edit.select_all()
