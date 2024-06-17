@@ -59,3 +59,8 @@ class Actions:
         if idx == -1:
             return None
         return idx
+
+    def superkey(phrase: list[str]):
+        """Press a key"""
+        actions.key("cmd-ctrl-alt-v")
+        actions.insert(" ".join(phrase))
