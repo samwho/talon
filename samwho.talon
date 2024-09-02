@@ -14,6 +14,16 @@ whisper:
   key("alt-y")
   speech.disable()
 
+deck(pedal_right):
+  key("alt-y")
+  speech.disable()
+
+deck(pedal_left):
+  speech.toggle()
+
+deck(pedal_middle):
+  key("enter")
+
 sleep:
   speech.disable()
 

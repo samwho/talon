@@ -1,4 +1,4 @@
 mode: sleep
 -
 
-wake: speech.enable()
+# wake: speech.enable()
