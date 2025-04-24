@@ -1,6 +1,6 @@
 import os
 
-from talon import Module, actions
+from talon import Module, actions, noise
 
 mod = Module()
 
