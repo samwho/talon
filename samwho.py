@@ -1,6 +1,6 @@
 import os
 
-from talon import Module, actions, noise
+from talon import Context, Module, actions
 
 mod = Module()
 
@@ -64,3 +64,26 @@ class Actions:
         """Press a key"""
         actions.key("cmd-ctrl-alt-v")
         actions.insert(" ".join(phrase))
+
+
+ctx = Context()
+
+
+@ctx.action_class("user")
+class OmegaMouseFullOverrides:
+    def noise_trigger_pop():
+        if not actions.speech.enabled():
+            return
+
+        if actions.tracking.control_enabled():
+            actions.mouse_click()
+            actions.tracking.control_toggle(False)
+            actions.tracking.control_head_toggle(False)
+            actions.tracking.control_gaze_focus_toggle(False)
+        else:
+            actions.tracking.control_head_toggle(False)
+            actions.tracking.control_gaze_focus_toggle(True)
+            actions.tracking.control_toggle(True)
+            actions.tracking.jump()
+            actions.sleep("50ms")
+            actions.tracking.control_head_toggle(True)
