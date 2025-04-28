@@ -29,3 +29,9 @@ go mark <user.text>:
 
 delete all marks:
   user.vscode("bookmarks.clearFromAllFiles")
+
+split shrink:
+  user.vscode("workbench.action.decreaseEditorWidth")
+
+split grow:
+  user.vscode("workbench.action.increaseEditorWidth")

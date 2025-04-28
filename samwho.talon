@@ -1,10 +1,13 @@
 settings():
-    user.mouse_enable_hiss_scroll = false
+    user.mouse_enable_hiss_scroll = true
+    user.hiss_scroll_debounce_time = 200
     user.mouse_continuous_scroll_amount = -15
     user.context_sensitive_dictation = true
 
+    tracking.zoom_height = 150
+    tracking.zoom_width = 200
+    tracking.zoom_scale = 6
 
-noise.register("pop", pop)
 
 correct <phrase> (to|two|too) <phrase>:
     user.selectXY(phrase_1, phrase_2)
@@ -53,3 +56,7 @@ scroll up:
 
 track:
   tracking.control_toggle()
+
+^talon sleep$:
+  speech.disable()
+  tracking.control_zoom_toggle(false)
