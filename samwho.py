@@ -1,6 +1,9 @@
 import os
 
 from talon import Context, Module, actions
+from talon.plugins import eye_zoom_mouse
+
+eye_zoom_mouse.config.eye_avg = 7
 
 mod = Module()
 
