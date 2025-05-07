@@ -30,11 +30,10 @@ scroll up:
   repeat(10)
 
 track:
-  tracking.control_toggle()
+  user.track()
 
 ^talon sleep$:
-  speech.disable()
-  tracking.control_zoom_toggle(false)
+  user.sleep()
 
 ^copy permalink$:
   user.vscode("issue.copyGithubPermalink")

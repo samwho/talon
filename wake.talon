@@ -5,5 +5,4 @@ not speech.engine: dragon
 -
 
 ^talon wake [<phrase>]$: 
-    speech.enable()
-    tracking.control_zoom_toggle(true)
+    user.wake()

@@ -1,6 +1,6 @@
 import os
 
-from talon import Context, Module, actions
+from talon import Module, actions
 from talon.plugins import eye_zoom_mouse
 
 eye_zoom_mouse.config.eye_avg = 7
@@ -63,31 +63,27 @@ class Actions:
             return None
         return idx
 
-    def superkey(phrase: list[str]):
-        """Press a key"""
-        actions.key("cmd-ctrl-alt-v")
-        actions.insert(" ".join(phrase))
+    def wake():
+        """Wake Talon"""
+        actions.tracking.control_zoom_toggle(True)
+        actions.speech.enable()
 
+    def sleep():
+        """Sleep Talon"""
+        actions.tracking.control_zoom_toggle(False)
+        actions.speech.disable()
 
-ctx = Context()
+    def track():
+        """Toggle mouse tracking"""
+        if actions.tracking.control_enabled():
+            actions.tracking.control_toggle(False)
+            actions.tracking.control_zoom_toggle(True)
 
+            actions.tracking.gaze_toggle(False)
+            actions.tracking.head_toggle(False)
+        else:
+            actions.tracking.control_toggle(True)
+            actions.tracking.control_zoom_toggle(False)
 
-# @ctx.action_class("user")
-# class PopOverride:
-#     def noise_trigger_pop():
-#         if not actions.speech.enabled():
-#             return
-#
-#         # if actions.tracking.control_enabled():
-#         #     actions.mouse_click()
-#         #     actions.tracking.control_toggle(False)
-#         #     actions.tracking.control_head_toggle(False)
-#         #     actions.tracking.control_gaze_focus_toggle(False)
-#         # else:
-#         #     actions.tracking.control_head_toggle(False)
-#         #     actions.tracking.control_gaze_focus_toggle(True)
-#         #     actions.tracking.control_toggle(True)
-#         #     actions.tracking.jump()
-#         #     actions.sleep("50ms")
-#         #     actions.tracking.control_head_toggle(True)
-#
+            actions.tracking.gaze_toggle(True)
+            actions.tracking.head_toggle(True)
