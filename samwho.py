@@ -73,6 +73,13 @@ class Actions:
         actions.tracking.control_zoom_toggle(False)
         actions.speech.disable()
 
+    def wake_toggle():
+        """Toggle Talon wake/sleep"""
+        if actions.speech.enabled():
+            actions.user.sleep()
+        else:
+            actions.user.wake()
+
     def track():
         """Toggle mouse tracking"""
         if actions.tracking.control_enabled():

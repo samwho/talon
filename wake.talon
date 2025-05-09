@@ -4,5 +4,5 @@ mode: sleep
 not speech.engine: dragon
 -
 
-^talon wake [<phrase>]$: 
+^talon wake [<phrase>]$:
     user.wake()

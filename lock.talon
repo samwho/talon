@@ -1,3 +1,3 @@
-lock screen: 
-    speech.disable()
+lock screen:
+    user.sleep()
     key(cmd-ctrl-l)

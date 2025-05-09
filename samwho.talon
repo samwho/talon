@@ -3,8 +3,10 @@ settings():
 
     user.mouse_enable_hiss_scroll = true
     user.hiss_scroll_debounce_time = 250
-    user.mouse_continuous_scroll_amount = -25
+    user.mouse_continuous_scroll_amount = -15
+    user.mouse_continuous_scroll_acceleration = 1.2
     user.mouse_hide_mouse_gui = true
+
     user.context_sensitive_dictation = true
 
     tracking.zoom_height = 150
@@ -37,3 +39,16 @@ track:
 
 ^copy permalink$:
   user.vscode("issue.copyGithubPermalink")
+
+parrot(finger_snap):
+  print("sleep snap")
+  user.wake_toggle()
+
+# parrot(shh:repeat):
+#   print("shh repeat")
+#   user.mouse_scroll_up_continuous()
+#
+# parrot(shh:stop):
+#   print("shh stop")
+#   user.mouse_scroll_stop()
+#
