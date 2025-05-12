@@ -37,3 +37,8 @@ track:
 
 ^copy permalink$:
   user.vscode("issue.copyGithubPermalink")
+
+[left] (triple | trip) (touch | click) <user.timestamped_prose>:
+  user.click_text(timestamped_prose)
+  user.click_text(timestamped_prose)
+  user.click_text(timestamped_prose)
