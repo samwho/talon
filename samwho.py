@@ -1,11 +1,23 @@
 import os
 
-from talon import Module, actions
+from talon import Module, actions, app
 from talon.plugins import eye_zoom_mouse
 
 eye_zoom_mouse.config.eye_avg = 7
 
 mod = Module()
+
+
+def on_ready():
+    actions.user.wake()
+
+    global default_mic
+    default_mic = actions.sound.active_microphone()
+
+    print(f"Default mic: {default_mic}")
+
+
+app.register("ready", on_ready)
 
 
 @mod.action_class
@@ -87,3 +99,11 @@ class Actions:
 
             actions.tracking.gaze_toggle(True)
             actions.tracking.head_toggle(True)
+
+    def mute_mic():
+        """Mute microphone"""
+        actions.sound.set_microphone("None")
+
+    def unmute_mic():
+        """Unmute microphone"""
+        actions.sound.set_microphone(default_mic)

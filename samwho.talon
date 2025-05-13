@@ -42,3 +42,13 @@ track:
   user.click_text(timestamped_prose)
   user.click_text(timestamped_prose)
   user.click_text(timestamped_prose)
+
+key(alt-y:down):
+  user.sleep()
+  user.mute_mic()
+  key(cmd-ctrl-alt-o:down)
+
+key(alt-y:up):
+  key(cmd-ctrl-alt-o:up)
+  user.wake()
+  user.unmute_mic()
