@@ -7,8 +7,6 @@ settings():
     user.mouse_continuous_scroll_acceleration = 3
     user.mouse_hide_mouse_gui = true
 
-    user.context_sensitive_dictation = true
-
     tracking.zoom_height = 150
     tracking.zoom_width = 200
     tracking.zoom_scale = 6
