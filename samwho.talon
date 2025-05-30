@@ -52,3 +52,12 @@ key(alt-y:up):
   key(cmd-ctrl-alt-o:up)
   user.wake()
   user.unmute_mic()
+
+screenshot:
+  user.screenshot_start()
+
+take:
+  user.screenshot_end()
+
+^talon restart$:
+  user.talon_restart()

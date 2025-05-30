@@ -88,17 +88,39 @@ class Actions:
     def track():
         """Toggle mouse tracking"""
         if actions.tracking.control_enabled():
-            actions.tracking.control_toggle(False)
-            actions.tracking.control_zoom_toggle(True)
-
-            actions.tracking.gaze_toggle(False)
-            actions.tracking.head_toggle(False)
+            actions.user.track_off()
         else:
-            actions.tracking.control_toggle(True)
-            actions.tracking.control_zoom_toggle(False)
+            actions.user.track_on()
 
-            actions.tracking.gaze_toggle(True)
-            actions.tracking.head_toggle(True)
+    def screenshot_start():
+        """Start a screenshot"""
+        actions.key("f13")
+        actions.sleep(0.1)
+        actions.user.mouse_drag(0)
+        actions.user.track_on()
+
+    def screenshot_end():
+        """End a screenshot"""
+        actions.user.mouse_drag_end()
+        actions.user.track_off()
+
+    def track_on():
+        """Turn on mouse tracking"""
+        if actions.tracking.control_enabled():
+            return
+        actions.tracking.control_toggle(True)
+        actions.tracking.control_zoom_toggle(False)
+        actions.tracking.control_gaze_toggle(True)
+        actions.tracking.control_head_toggle(True)
+
+    def track_off():
+        """Turn off mouse tracking"""
+        if not actions.tracking.control_enabled():
+            return
+        actions.tracking.control_toggle(False)
+        actions.tracking.control_zoom_toggle(True)
+        actions.tracking.control_gaze_toggle(False)
+        actions.tracking.control_head_toggle(False)
 
     def mute_mic():
         """Mute microphone"""
@@ -107,3 +129,7 @@ class Actions:
     def unmute_mic():
         """Unmute microphone"""
         actions.sound.set_microphone(default_mic)
+
+    def talon_restart():
+        """Restart talon"""
+        os.system("/Users/samrose/bin/restart-talon")
