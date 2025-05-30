@@ -38,15 +38,26 @@ track:
 ^copy permalink$:
   user.vscode("issue.copyGithubPermalink")
 
-# parrot(finger_snap):
-#   print("sleep snap")
-#   user.wake_toggle()
+[left] (triple | trip) (touch | click) <user.timestamped_prose>:
+  user.click_text(timestamped_prose)
+  user.click_text(timestamped_prose)
+  user.click_text(timestamped_prose)
 
-# parrot(shh:repeat):
-#   print("shh repeat")
-#   user.mouse_scroll_up_continuous()
-#
-# parrot(shh:stop):
-#   print("shh stop")
-#   user.mouse_scroll_stop()
-#
+key(alt-y:down):
+  user.sleep()
+  user.mute_mic()
+  key(cmd-ctrl-alt-o:down)
+
+key(alt-y:up):
+  key(cmd-ctrl-alt-o:up)
+  user.wake()
+  user.unmute_mic()
+
+screenshot:
+  user.screenshot_start()
+
+take:
+  user.screenshot_end()
+
+^talon restart$:
+  user.talon_restart()
