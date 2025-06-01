@@ -139,4 +139,4 @@ class Actions:
 
     def talon_restart():
         """Restart talon"""
-        os.system("/Users/samrose/bin/restart-talon")
+        os.system("restart-talon")
