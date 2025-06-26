@@ -11,13 +11,10 @@ mod = Module()
 def on_ready():
     actions.user.wake()
 
-    global default_mic
-    default_mic = actions.sound.active_microphone()
-
-    print(f"Default mic: {default_mic}")
-
 
 app.register("ready", on_ready)
+
+dictating = False
 
 
 @mod.action_class
@@ -135,7 +132,34 @@ class Actions:
 
     def unmute_mic():
         """Unmute microphone"""
-        actions.sound.set_microphone(default_mic)
+        actions.sound.set_microphone("Scarlett Solo USB")
+
+    def start_dictation():
+        """Start dictation"""
+        actions.sleep(0.1)
+        actions.user.sleep()
+        actions.user.mute_mic()
+        actions.key("ctrl-shift-o")
+
+        global dictating
+        dictating = True
+
+    def stop_dictation():
+        """Stop dictation"""
+        actions.sleep(0.1)
+        actions.key("ctrl-shift-o")
+        actions.user.unmute_mic()
+        actions.user.wake()
+
+        global dictating
+        dictating = False
+
+    def toggle_dictation():
+        """Toggle dictation"""
+        if dictating:
+            actions.user.stop_dictation()
+        else:
+            actions.user.start_dictation()
 
     def talon_restart():
         """Restart talon"""
