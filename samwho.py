@@ -163,4 +163,5 @@ class Actions:
 
     def talon_restart():
         """Restart talon"""
-        os.system("restart-talon")
+        print("Restarting Talon...")
+        os.system("~/bin/restart-talon > /tmp/talon-restart-status.txt 2>&1")
