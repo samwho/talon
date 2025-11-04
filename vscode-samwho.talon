@@ -35,3 +35,32 @@ delete all marks:
 
 (split | tab) grow:
   user.vscode("workbench.action.increaseViewWidth")
+
+
+tab merge left:
+  user.vscode("workbench.action.moveEditorToLeftGroup")
+
+tab merge right:
+  user.vscode("workbench.action.moveEditorToRightGroup")
+
+tab merge up:
+  user.vscode("workbench.action.moveEditorToAboveGroup")
+
+tab merge down:
+  user.vscode("workbench.action.moveEditorToBelowGroup")
+
+terminal new:
+  user.vscode("workbench.action.createTerminalEditorSide")
+  user.vscode("workbench.action.moveEditorToLeftGroup")
+
+pane up:
+  user.vscode("workbench.action.focusAboveGroup")
+
+pane down:
+  user.vscode("workbench.action.focusBelowGroup")
+
+pane left:
+  user.vscode("workbench.action.focusLeftGroup")
+
+pane right:
+  user.vscode("workbench.action.focusRightGroup")

@@ -32,9 +32,6 @@ scroll up:
 track:
   user.track()
 
-^talon sleep$:
-  user.sleep()
-
 ^copy permalink$:
   user.vscode("issue.copyGithubPermalink")
 
