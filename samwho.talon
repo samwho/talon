@@ -44,7 +44,7 @@ track:
   user.click_text(timestamped_prose)
 
 key(alt-y):
-  user.toggle_dictation()
+  user.start_dictation()
 
 screenshot:
   user.screenshot_start()
@@ -54,3 +54,17 @@ take:
 
 ^talon restart$:
   user.talon_restart()
+
+^chat gpt$:
+  key(alt-space)
+  user.start_dictation()
+
+^open chat$:
+  key(alt-space)
+  user.start_dictation()
+
+^whisper$:
+  mode.disable("command")
+  mode.enable("user.whisper")
+  user.start_dictation()
+

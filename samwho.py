@@ -1,6 +1,6 @@
 import os
 
-from talon import Module, actions, app
+from talon import Module, actions, app, noise
 from talon.plugins import eye_zoom_mouse
 
 eye_zoom_mouse.config.eye_avg = 7
@@ -12,9 +12,9 @@ def on_ready():
     actions.user.wake()
 
 
-app.register("ready", on_ready)
+mod.mode("whisper", desc="For dictation outside of Talon")
 
-dictating = False
+app.register("ready", on_ready)
 
 
 @mod.action_class
@@ -74,13 +74,21 @@ class Actions:
 
     def wake():
         """Wake Talon"""
-        actions.tracking.control_zoom_toggle(True)
+        actions.user.pop_zoom_on()
         actions.speech.enable()
 
     def sleep():
         """Sleep Talon"""
-        actions.tracking.control_zoom_toggle(False)
+        actions.user.pop_zoom_off()
         actions.speech.disable()
+
+    def pop_zoom_off():
+        """Turn off pop zoom"""
+        actions.tracking.control_zoom_toggle(False)
+
+    def pop_zoom_on():
+        """Turn on pop zoom"""
+        actions.tracking.control_zoom_toggle(True)
 
     def wake_toggle():
         """Toggle Talon wake/sleep"""
@@ -137,31 +145,23 @@ class Actions:
     def start_dictation():
         """Start dictation"""
         actions.sleep(0.1)
-        actions.user.sleep()
-        actions.user.mute_mic()
+        actions.user.pop_zoom_off()
+        actions.mode.enable("user.whisper")
+        actions.mode.disable("command")
         actions.key("ctrl-shift-o")
-
-        global dictating
-        dictating = True
-
-    def stop_dictation():
-        """Stop dictation"""
-        actions.sleep(0.1)
-        actions.key("ctrl-shift-o")
-        actions.user.unmute_mic()
-        actions.user.wake()
-
-        global dictating
-        dictating = False
-
-    def toggle_dictation():
-        """Toggle dictation"""
-        if dictating:
-            actions.user.stop_dictation()
-        else:
-            actions.user.start_dictation()
+        noise.register("pop", stop_dictation)
 
     def talon_restart():
         """Restart talon"""
         print("Restarting Talon...")
         os.system("~/bin/restart-talon > /tmp/talon-restart-status.txt 2>&1")
+
+
+def stop_dictation(_active):
+    """Stop dictation"""
+    actions.sleep(0.1)
+    actions.key("ctrl-shift-o")
+    actions.mode.disable("user.whisper")
+    actions.mode.enable("command")
+    actions.user.pop_zoom_on()
+    noise.unregister("pop", stop_dictation)
