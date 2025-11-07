@@ -61,7 +61,6 @@ take:
   user.start_dictation()
 
 ^whisper$:
-  mode.disable("command")
-  mode.enable("user.whisper")
   user.start_dictation()
+
 
