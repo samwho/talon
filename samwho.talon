@@ -60,7 +60,30 @@ take:
   key(alt-space)
   user.start_dictation()
 
+^chat with screen$:
+  user.screenshot_clipboard()
+  key(alt-space)
+  sleep(0.1)
+  edit.paste()
+  user.start_dictation()
+
 ^whisper$:
   user.start_dictation()
 
+^voice note$:
+  user.start_voicenote()
 
+^editor$:
+  user.switcher_focus("Zed")
+
+^code$:
+  user.switcher_focus("Zed")
+
+^browser$:
+  user.switcher_focus("Arc")
+
+^browse$:
+  user.switcher_focus("Arc")
+
+^slack$:
+  user.switcher_focus("Slack")

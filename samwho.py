@@ -13,6 +13,7 @@ def on_ready():
 
 
 mod.mode("whisper", desc="For dictation outside of Talon")
+mod.mode("voicenote", desc="For recording voicenotes")
 
 app.register("ready", on_ready)
 
@@ -142,6 +143,15 @@ class Actions:
         """Unmute microphone"""
         actions.sound.set_microphone("Scarlett Solo USB")
 
+    def start_voicenote():
+        """Start voicenote"""
+        actions.sleep(0.1)
+        actions.user.pop_zoom_off()
+        actions.mode.enable("user.voicenote")
+        actions.mode.disable("command")
+        actions.key("alt-n")
+        noise.register("pop", stop_voicenote)
+
     def start_dictation():
         """Start dictation"""
         actions.sleep(0.1)
@@ -165,3 +175,13 @@ def stop_dictation(_active):
     actions.mode.enable("command")
     actions.user.pop_zoom_on()
     noise.unregister("pop", stop_dictation)
+
+
+def stop_voicenote(_active):
+    """Stop voicenote"""
+    actions.sleep(0.1)
+    actions.key("alt-s")
+    actions.mode.disable("user.voicenote")
+    actions.mode.enable("command")
+    actions.user.pop_zoom_on()
+    noise.unregister("pop", stop_voicenote)
