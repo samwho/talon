@@ -43,6 +43,9 @@ track:
 key(alt-y):
   user.start_dictation()
 
+key(alt-ctrl-cmd-shift-o):
+  user.wake_toggle()
+
 screenshot:
   user.screenshot_start()
 
