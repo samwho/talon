@@ -6,6 +6,7 @@ from talon.plugins import eye_zoom_mouse
 eye_zoom_mouse.config.eye_avg = 7
 
 mod = Module()
+_hiss_scroll_up = False
 
 
 def on_ready():
@@ -91,12 +92,38 @@ class Actions:
         """Turn on pop zoom"""
         actions.tracking.control_zoom_toggle(True)
 
-    def wake_toggle():
-        """Toggle Talon wake/sleep"""
+    def wake_toggle(show_message: bool = False):
+        """Toggle Talon wake/sleep, optionally showing a message."""
         if actions.speech.enabled():
             actions.user.sleep()
+            state = "sleep"
         else:
             actions.user.wake()
+            state = "wake"
+
+        if show_message:
+            actions.user.flash_text(f"talon {state}")
+
+    def mouse_hiss_set_up():
+        """Set mouse hiss scroll direction to up."""
+        global _hiss_scroll_up
+        _hiss_scroll_up = True
+        actions.user.hiss_scroll_up()
+        actions.user.flash_text("mouse hiss up")
+
+    def mouse_hiss_set_down():
+        """Set mouse hiss scroll direction to down."""
+        global _hiss_scroll_up
+        _hiss_scroll_up = False
+        actions.user.hiss_scroll_down()
+        actions.user.flash_text("mouse hiss down")
+
+    def mouse_hiss_toggle():
+        """Toggle mouse hiss scroll direction."""
+        if _hiss_scroll_up:
+            actions.user.mouse_hiss_set_down()
+        else:
+            actions.user.mouse_hiss_set_up()
 
     def track():
         """Toggle mouse tracking"""
@@ -107,6 +134,7 @@ class Actions:
 
     def screenshot_start():
         """Start a screenshot"""
+        actions.sleep(0.1)
         actions.key("f13")
         actions.sleep(0.1)
         actions.user.mouse_drag(0)

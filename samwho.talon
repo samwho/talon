@@ -43,8 +43,11 @@ track:
 key(alt-y):
   user.start_dictation()
 
-key(alt-ctrl-cmd-shift-o):
-  user.wake_toggle()
+key(alt-ctrl-cmd-shift-a):
+  user.wake_toggle(true)
+
+key(alt-ctrl-cmd-shift-b):
+  user.mouse_hiss_toggle()
 
 screenshot:
   user.screenshot_start()
