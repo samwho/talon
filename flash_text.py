@@ -63,18 +63,45 @@ def _setting(name: str):
     return settings.get(f"user.flash_text_{name}")
 
 
+def _setting_int(name: str) -> int:
+    val = _setting(name)
+    if isinstance(val, int):
+        return val
+    if isinstance(val, float | str):
+        return int(val)
+    return 0
+
+
+def _setting_float(name: str) -> float:
+    val = _setting(name)
+    if isinstance(val, int | float):
+        return float(val)
+    if isinstance(val, str):
+        return float(val)
+    return 0.0
+
+
+def _setting_str(name: str) -> str:
+    val = _setting(name)
+    if isinstance(val, str):
+        return val
+    if val is None:
+        return ""
+    return str(val)
+
+
 def _calculate_timeout(text: str) -> int:
-    ms_per_char = _setting("timeout_per_char")
-    ms_min = _setting("timeout_min")
-    ms_max = _setting("timeout_max")
+    ms_per_char = _setting_int("timeout_per_char")
+    ms_min = _setting_int("timeout_min")
+    ms_max = _setting_int("timeout_max")
     return min(ms_max, max(ms_min, len(text) * ms_per_char))
 
 
-def _set_text_size_and_get_rect(c: SkiaCanvas, size: int, text: str) -> Rect:
+def _set_text_size_and_get_rect(c: SkiaCanvas, size: float, text: str) -> Rect:
     while True:
         c.paint.textsize = size
         rect = c.paint.measure_text(text)[1]
-        if rect.width < c.width * _setting("max_width"):
+        if rect.width < c.width * _setting_float("max_width"):
             return rect
         size *= 0.9
 
@@ -86,13 +113,13 @@ def _close_canvas(canvas: Canvas):
 
 
 def _on_draw(c: SkiaCanvas, screen: ui.Screen, text: str):
-    scale = screen.scale if app.platform != "mac" else 1
-    size = _setting("size") * scale
+    scale = float(screen.scale) if app.platform != "mac" else 1.0
+    size = _setting_float("size") * scale
     rect = _set_text_size_and_get_rect(c, size, text)
     x = c.rect.center.x - rect.center.x
     y = max(
         min(
-            c.rect.y + _setting("y") * c.rect.height + c.paint.textsize / 2,
+            c.rect.y + _setting_float("y") * c.rect.height + c.paint.textsize / 2,
             c.rect.bot - rect.bot,
         ),
         c.rect.top - rect.top,
@@ -100,12 +127,12 @@ def _on_draw(c: SkiaCanvas, screen: ui.Screen, text: str):
 
     c.paint.imagefilter = ImageFilter.drop_shadow(0, 2, 2, 2, "000000")
     c.paint.style = c.paint.Style.FILL
-    c.paint.color = _setting("color")
+    c.paint.color = _setting_str("color")
     c.draw_text(text, x, y)
 
     c.paint.imagefilter = None
     c.paint.style = c.paint.Style.STROKE
-    c.paint.color = _setting("color_outline")
+    c.paint.color = _setting_str("color_outline")
     c.draw_text(text, x, y)
 
 

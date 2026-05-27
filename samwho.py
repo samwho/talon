@@ -21,6 +21,10 @@ app.register("ready", on_ready)
 
 @mod.action_class
 class Actions:
+    def noop():
+        """Do nothing."""
+        return
+
     def open_obsidian_daily_note():
         """My custom date function"""
         return os.system(
