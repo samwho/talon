@@ -7,4 +7,4 @@ not tag: user.deep_sleep
 -
 
 ^talon wake [<phrase>]$:
-    user.noop()
+    user.samwho_noop()

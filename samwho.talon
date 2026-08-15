@@ -13,13 +13,10 @@ settings():
 
 
 correct <phrase> (to|two|too) <phrase>:
-    user.selectXY(phrase_1, phrase_2)
+    user.samwho_select_xy(phrase_1, phrase_2)
 
 correct <phrase>:
-    user.correct(phrase)
-
-obsidian today:
-    user.open_obsidian_daily_note()
+    user.samwho_correct(phrase)
 
 scroll down:
   edit.down()
@@ -30,7 +27,7 @@ scroll up:
   repeat(10)
 
 track:
-  user.track()
+  user.samwho_track()
 
 ^copy permalink$:
   user.vscode("issue.copyGithubPermalink")
@@ -41,43 +38,43 @@ track:
   user.click_text(timestamped_prose)
 
 key(alt-y):
-  user.start_dictation()
+  user.samwho_start_dictation()
 
 key(alt-ctrl-cmd-shift-a):
-  user.wake_toggle(true)
+  user.samwho_wake_toggle(true)
 
 key(alt-ctrl-cmd-shift-b):
-  user.mouse_hiss_toggle()
+  user.samwho_mouse_hiss_toggle()
 
 screenshot:
-  user.screenshot_start()
+  user.samwho_screenshot_start()
 
 take:
-  user.screenshot_end()
+  user.samwho_screenshot_end()
 
 ^talon restart$:
-  user.talon_restart()
+  user.samwho_talon_restart()
 
 ^chat gpt$:
   key(alt-space)
-  user.start_dictation()
+  user.samwho_start_dictation()
 
 ^open chat$:
   key(alt-space)
-  user.start_dictation()
+  user.samwho_start_dictation()
 
 ^chat with screen$:
   user.screenshot_clipboard()
   key(alt-space)
   sleep(0.1)
   edit.paste()
-  user.start_dictation()
+  user.samwho_start_dictation()
 
 ^whisper$:
-  user.start_dictation()
+  user.samwho_start_dictation()
 
 ^voice note$:
-  user.start_voicenote()
+  user.samwho_start_voicenote()
 
 ^editor$:
   user.switcher_focus("Zed")

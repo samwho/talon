@@ -7,49 +7,49 @@ from talon.types import Rect
 mod = Module()
 
 mod.setting(
-    "flash_text_size",
+    "samwho_flash_text_size",
     int,
     default=80,
     desc="Font size for flash text in pixels",
 )
 mod.setting(
-    "flash_text_color",
+    "samwho_flash_text_color",
     str,
     default="ffffff",
     desc="Flash text color (hex without #)",
 )
 mod.setting(
-    "flash_text_color_outline",
+    "samwho_flash_text_color_outline",
     str,
     default="000000",
     desc="Flash text outline color (hex without #)",
 )
 mod.setting(
-    "flash_text_max_width",
+    "samwho_flash_text_max_width",
     float,
     default=0.9,
     desc="Maximum width as a fraction of the screen before shrinking text",
 )
 mod.setting(
-    "flash_text_timeout_per_char",
+    "samwho_flash_text_timeout_per_char",
     int,
     default=50,
     desc="Extra ms to show for each character",
 )
 mod.setting(
-    "flash_text_timeout_min",
+    "samwho_flash_text_timeout_min",
     int,
     default=900,
     desc="Minimum display time in ms",
 )
 mod.setting(
-    "flash_text_timeout_max",
+    "samwho_flash_text_timeout_max",
     int,
     default=2500,
     desc="Maximum display time in ms",
 )
 mod.setting(
-    "flash_text_y",
+    "samwho_flash_text_y",
     float,
     default=0.85,
     desc="Vertical position as a fraction of screen height (0=top, 1=bottom)",
@@ -60,7 +60,7 @@ _close_job = None
 
 
 def _setting(name: str):
-    return settings.get(f"user.flash_text_{name}")
+    return settings.get(f"user.samwho_flash_text_{name}")
 
 
 def _setting_int(name: str) -> int:
@@ -159,6 +159,6 @@ def _show_text(text: str):
 
 @mod.action_class
 class Actions:
-    def flash_text(text: str):
+    def samwho_flash_text(text: str):
         """Show temporary on-screen text similar to Talon subtitles."""
         _show_text(text)

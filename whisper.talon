@@ -1,4 +1,4 @@
-mode: user.whisper
+mode: user.samwho_whisper
 ---
 
 settings():

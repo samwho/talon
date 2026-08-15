@@ -1,4 +1,4 @@
-mode: user.voicenote
+mode: user.samwho_voicenote
 ---
 
 settings():
