@@ -83,10 +83,10 @@ take:
   user.switcher_focus("Zed")
 
 ^code$:
-  user.switcher_focus("Zed")
+  user.switcher_focus("Ghostty")
 
 ^(browse|browser|brace)$:
-  user.switcher_focus("Zen")
+  user.switcher_focus("Google Chrome")
 
 ^slack$:
   user.switcher_focus("Slack")
