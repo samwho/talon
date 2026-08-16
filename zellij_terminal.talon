@@ -1,5 +1,5 @@
-app: samwho_ghostty
-user.ghostty_is_zellij: true
+app: samwho_terminal
+user.terminal_is_zellij: true
 user.zellij_program: /^(bash|zsh|fish|sh|dash|ksh|tcsh|csh|nu|nushell|pwsh|powershell)$/i
 -
 

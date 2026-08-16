@@ -2,8 +2,8 @@ from talon import Context, actions
 
 ctx = Context()
 ctx.matches = """
-app: samwho_ghostty
-user.ghostty_is_zellij: true
+app: samwho_terminal
+user.terminal_is_zellij: true
 """
 
 

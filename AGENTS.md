@@ -43,8 +43,9 @@ does not look like normal Python to static type checkers.
 - Prefix new personal actions, modes, settings, and other declarations with
   `samwho_` unless they intentionally implement a Community contract. Talon
   custom action names cannot contain dots, so use `user.samwho_*` rather than a
-  nested `user.samwho.*` namespace. Keep the established `user.ghostty_*` and
-  `user.zellij_*` metadata names stable.
+  nested `user.samwho.*` namespace. Keep the established `user.terminal_*` and
+  `user.zellij_*` metadata names stable. `user.terminal_*` is shared by the
+  supported terminal emulators; `user.zellij_*` describes a nested Zellij pane.
 
 ## Editing Guidance
 

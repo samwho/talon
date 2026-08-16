@@ -1,5 +1,5 @@
-app: samwho_ghostty
-user.ghostty_program: /^(bash|zsh|fish|sh|dash|ksh|tcsh|csh|nu|nushell|pwsh|powershell)$/i
+app: samwho_terminal
+user.terminal_program: /^(bash|zsh|fish|sh|dash|ksh|tcsh|csh|nu|nushell|pwsh|powershell)$/i
 -
 
 # Community's generic terminal and shell contracts.

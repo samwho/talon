@@ -1,5 +1,5 @@
-app: samwho_ghostty
-user.ghostty_focused_program: /^pi$/i
+app: samwho_terminal
+user.terminal_focused_program: /^pi$/i
 -
 
 # Pi's editor follows readline-like key semantics. Keep Community's
@@ -8,7 +8,7 @@ tag(): user.readline
 # Do not activate terminal or generic_unix_shell here: Pi is a TUI, not a
 # shell prompt, so those commands would insert shell text into Pi's editor.
 
-# Operate the surrounding Ghostty/Zellij tabs while Pi is focused.
+# Operate the surrounding terminal/Zellij tabs while Pi is focused.
 tag(): user.tabs
 
 # Application controls.
@@ -48,7 +48,7 @@ thinking cycle: key(shift-tab)
 
 # Message and tool controls. Ctrl-X is reserved by Zellij's quit binding, so
 # Pi's message-copy binding is provided only for native Ghostty in
-# pi_native.talon.
+# pi_native.talon; WezTerm reserves Ctrl-X for quitting, like Zellij.
 tools toggle: key(ctrl-o)
 follow up queue: key(alt-enter)
 queued message restore: key(alt-up)

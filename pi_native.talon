@@ -1,6 +1,6 @@
 app: samwho_ghostty
-user.ghostty_focused_program: /^pi$/i
-user.ghostty_is_zellij: false
+user.terminal_focused_program: /^pi$/i
+user.terminal_is_zellij: false
 -
 
 # These are Pi's default bindings when no Zellij keymap is intercepting them.

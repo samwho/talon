@@ -1,11 +1,13 @@
 import json
 import os
 import queue
+import re
 import shlex
 import shutil
 import subprocess
 import threading
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 from talon import Context, Module, actions, cron, ui
 
@@ -14,16 +16,22 @@ mod.apps.samwho_ghostty = """
 os: mac
 and app.bundle: com.mitchellh.ghostty
 """
+mod.apps.samwho_terminal = r"""
+os: mac
+and app.bundle: /^(com\.mitchellh\.ghostty|com\.github\.wez\.wezterm)$/
+"""
 
 _GHOSTTY_BUNDLE = "com.mitchellh.ghostty"
+_WEZTERM_BUNDLE = "com.github.wez.wezterm"
+_TERMINAL_BUNDLES = {_GHOSTTY_BUNDLE, _WEZTERM_BUNDLE}
 _UNKNOWN = "unknown"
 _NONE = "none"
 
 # All scope values are strings so they can be used directly in .talon context
 # headers. Values are deliberately present as "none" when their source is not
 # active, which clears stale zellij data when switching to a native terminal.
-# `ghostty_focused_program` normalizes native and nested-Zellij programs for
-# app contexts while `ghostty_program` retains the host process identity.
+# `terminal_focused_program` normalizes native and nested-Zellij programs for
+# app contexts while `terminal_program` retains the host process identity.
 _PANE_SCOPE_FIELDS = {
     "is_focused": "zellij_pane_focused",
     "is_fullscreen": "zellij_pane_fullscreen",
@@ -72,18 +80,18 @@ _TAB_SCOPE_FIELDS = {
 }
 
 _SCOPE_KEYS = {
-    "ghostty_program",
-    "ghostty_focused_program",
-    "ghostty_command",
-    "ghostty_title",
-    "ghostty_cwd",
-    "ghostty_terminal_id",
-    "ghostty_window_id",
-    "ghostty_window_title",
-    "ghostty_tab_id",
-    "ghostty_tab_name",
-    "ghostty_tab_index",
-    "ghostty_is_zellij",
+    "terminal_program",
+    "terminal_focused_program",
+    "terminal_command",
+    "terminal_title",
+    "terminal_cwd",
+    "terminal_id",
+    "terminal_window_id",
+    "terminal_window_title",
+    "terminal_tab_id",
+    "terminal_tab_name",
+    "terminal_tab_index",
+    "terminal_is_zellij",
     "zellij_session",
     "zellij_program",
     "zellij_command",
@@ -122,6 +130,19 @@ def _first_present(*values: Any) -> Any:
     for value in values:
         if value is not None:
             return value
+    return None
+
+
+def _wezterm_path() -> str | None:
+    """Find WezTerm's CLI even when Talon's PATH does not include Homebrew."""
+    candidates = [
+        shutil.which("wezterm"),
+        "/opt/homebrew/bin/wezterm",
+        "/usr/local/bin/wezterm",
+    ]
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
     return None
 
 
@@ -170,6 +191,7 @@ def _ghostty_terminal() -> dict[str, str] | None:
             "tab_id": _scope_text(tab.id()),
             "tab_name": _scope_text(tab.name()),
             "tab_index": _scope_text(tab.index()),
+            "command": _scope_text(terminal.name()),
         }
     except Exception as error:
         raise RuntimeError(f"Ghostty AppleScript query failed: {error}") from error
@@ -177,6 +199,159 @@ def _ghostty_terminal() -> dict[str, str] | None:
     if result["title"] == _NONE:
         raise RuntimeError("Ghostty returned an empty terminal title")
     return result
+
+
+def _wezterm_terminal() -> dict[str, str] | None:
+    """Return focused WezTerm pane metadata through its local mux CLI."""
+    active_app = ui.active_app()
+    if not active_app or active_app.bundle != _WEZTERM_BUNDLE:
+        return None
+
+    window = ui.active_window()
+    window_title = _scope_text(window.title if window else None)
+    if window_title == _NONE:
+        # macOS can report an empty title while a newly activated WezTerm
+        # window is still being constructed; a later title event will retry.
+        return None
+
+    result = {
+        "title": window_title,
+        "cwd": _NONE,
+        "terminal_id": _NONE,
+        "window_id": _NONE,
+        "window_title": window_title,
+        "tab_id": _NONE,
+        "tab_name": _NONE,
+        "tab_index": _NONE,
+        "command": window_title,
+    }
+    wezterm = _wezterm_path()
+    if wezterm is None:
+        return result
+
+    cli_result = _run([wezterm, "cli", "list", "--format", "json"])
+    if cli_result.returncode != 0:
+        return result
+    try:
+        panes = json.loads(cli_result.stdout)
+    except json.JSONDecodeError:
+        return result
+    if not isinstance(panes, list):
+        return result
+
+    selected_tab_index, pane_title = _wezterm_selected_tab(window_title)
+    # `wezterm cli list` does not update `window_title` when a tab changes,
+    # but the selected pane/tab title is present in the macOS window title.
+    # Use it to identify the CLI window before resolving its selected tab.
+    matching_window_ids = {
+        pane.get("window_id")
+        for pane in panes
+        if _scope_text(pane.get("title")) == pane_title
+        or _scope_text(pane.get("tab_title")) == pane_title
+    }
+    if len(matching_window_ids) == 1:
+        window_id = matching_window_ids.pop()
+        window_panes = [pane for pane in panes if pane.get("window_id") == window_id]
+    elif len({pane.get("window_id") for pane in panes}) == 1:
+        window_panes = panes
+    else:
+        return result
+    tab_ids = []
+    for candidate in window_panes:
+        tab_id = candidate.get("tab_id")
+        if tab_id not in tab_ids:
+            tab_ids.append(tab_id)
+
+    # `is_active` means the focused pane *within each tab*, not the selected
+    # tab. The macOS title convention starts with `[current/total]`, which
+    # unambiguously identifies the selected tab even when its pane title is
+    # shared by other tabs.
+    if selected_tab_index is not None and 1 <= selected_tab_index <= len(tab_ids):
+        selected_tab_id = tab_ids[selected_tab_index - 1]
+        candidates = [
+            pane for pane in window_panes if pane.get("tab_id") == selected_tab_id
+        ]
+    else:
+        candidates = window_panes
+    title_matches = [
+        pane
+        for pane in candidates
+        if _scope_text(pane.get("title")) == pane_title
+        or _scope_text(pane.get("tab_title")) == pane_title
+    ]
+    active_matches = [pane for pane in candidates if pane.get("is_active") is True]
+    if len(title_matches) == 1:
+        pane = title_matches[0]
+    elif len(active_matches) == 1:
+        pane = active_matches[0]
+    elif len(candidates) == 1:
+        pane = candidates[0]
+    else:
+        return result
+    cwd = _scope_text(pane.get("cwd"))
+    if cwd.startswith("file://"):
+        cwd = _scope_text(unquote(urlparse(cwd).path))
+
+    result.update(
+        {
+            "title": _scope_text(pane.get("title")),
+            "cwd": cwd,
+            "terminal_id": _scope_text(pane.get("pane_id")),
+            "window_id": _scope_text(pane.get("window_id")),
+            "window_title": _scope_text(pane.get("window_title")),
+            "tab_id": _scope_text(pane.get("tab_id")),
+            "tab_name": _scope_text(pane.get("tab_title") or pane.get("title")),
+            "tab_index": _scope_text(tab_ids.index(pane.get("tab_id")) + 1),
+            "command": _wezterm_foreground_command(
+                _scope_text(pane.get("tty_name"))
+            ),
+        }
+    )
+    return result
+
+
+def _wezterm_selected_tab(window_title: str) -> tuple[int | None, str]:
+    """Extract WezTerm's one-based macOS selected-tab prefix, when present."""
+    match = re.match(r"^\[(\d+)/(\d+)\]\s+(.+)$", window_title)
+    if match is None:
+        return None, window_title
+    return int(match.group(1)), match.group(3)
+
+
+def _wezterm_foreground_command(tty_name: str) -> str:
+    """Return the foreground process command for a WezTerm pseudo-terminal."""
+    if tty_name in (_NONE, _UNKNOWN):
+        return _NONE
+    result = _run(
+        [
+            "/bin/ps",
+            "-t",
+            tty_name.removeprefix("/dev/"),
+            "-o",
+            "stat=",
+            "-o",
+            "command=",
+        ]
+    )
+    if result.returncode != 0:
+        return _NONE
+    for line in result.stdout.splitlines():
+        state, _, command = line.strip().partition(" ")
+        if "+" in state and command:
+            return command.strip()
+    return _NONE
+
+
+def _active_terminal() -> dict[str, str] | None:
+    """Return metadata for the active supported terminal application."""
+    active_app = ui.active_app()
+    if not active_app:
+        return None
+    if active_app.bundle == _GHOSTTY_BUNDLE:
+        return _ghostty_terminal()
+    if active_app.bundle == _WEZTERM_BUNDLE:
+        return _wezterm_terminal()
+    return None
 
 
 def _zellij_sessions(zellij: str) -> list[str]:
@@ -187,7 +362,7 @@ def _zellij_sessions(zellij: str) -> list[str]:
 
 
 def _zellij_session_for_title(title: str, sessions: list[str]) -> str | None:
-    """Match Ghostty's '<session> | <pane title>' terminal-title convention."""
+    """Match a terminal's '<session> | <pane title>' Zellij title convention."""
     matches = [
         session
         for session in sessions
@@ -211,7 +386,15 @@ def _program_name(command_or_title: Any) -> str:
     if not parts:
         return _UNKNOWN
 
-    return os.path.basename(parts[0]) or _UNKNOWN
+    program = os.path.basename(parts[0])
+    # GUI terminal launchers commonly invoke a command through a shell. For
+    # example, Pi's wrapper appears as `/bin/bash .../pi`; expose the actual
+    # script so program-scoped Talon contexts continue to identify Pi.
+    if program in {"bash", "zsh", "sh", "dash", "ksh"} and len(parts) > 1:
+        script = os.path.basename(parts[1])
+        if script and not script.startswith("-"):
+            return script
+    return program or _UNKNOWN
 
 
 def _zellij_state(
@@ -359,30 +542,31 @@ def _zellij_scope_values(session: str, state: dict[str, Any]) -> dict[str, str]:
 
 def _detect_scope() -> dict[str, str]:
     scope = {key: _NONE for key in _SCOPE_KEYS}
-    terminal = _ghostty_terminal()
+    terminal = _active_terminal()
     if terminal is None:
         return scope
 
     scope.update(
         {
-            "ghostty_title": terminal["title"],
-            "ghostty_cwd": terminal["cwd"],
-            "ghostty_terminal_id": terminal["terminal_id"],
-            "ghostty_window_id": terminal["window_id"],
-            "ghostty_window_title": terminal["window_title"],
-            "ghostty_tab_id": terminal["tab_id"],
-            "ghostty_tab_name": terminal["tab_name"],
-            "ghostty_tab_index": terminal["tab_index"],
+            "terminal_title": terminal["title"],
+            "terminal_cwd": terminal["cwd"],
+            "terminal_id": terminal["terminal_id"],
+            "terminal_window_id": terminal["window_id"],
+            "terminal_window_title": terminal["window_title"],
+            "terminal_tab_id": terminal["tab_id"],
+            "terminal_tab_name": terminal["tab_name"],
+            "terminal_tab_index": terminal["tab_index"],
         }
     )
 
-    native_program = _program_name(terminal["title"])
+    native_program = _program_name(terminal["command"])
+    native_command = terminal["command"]
     zellij = _zellij_path()
     if zellij is None:
-        scope["ghostty_program"] = native_program
-        scope["ghostty_focused_program"] = native_program
-        scope["ghostty_command"] = terminal["title"]
-        scope["ghostty_is_zellij"] = "false"
+        scope["terminal_program"] = native_program
+        scope["terminal_focused_program"] = native_program
+        scope["terminal_command"] = native_command
+        scope["terminal_is_zellij"] = "false"
         return scope
 
     sessions = _zellij_sessions(zellij)
@@ -395,17 +579,15 @@ def _detect_scope() -> dict[str, str]:
         session = sessions[0]
 
     if session is None:
-        # Ghostty's AppleScript dictionary does not expose a native process
-        # command, so its terminal title is the best available fallback.
-        scope["ghostty_program"] = native_program
-        scope["ghostty_focused_program"] = native_program
-        scope["ghostty_command"] = terminal["title"]
-        scope["ghostty_is_zellij"] = "false"
+        scope["terminal_program"] = native_program
+        scope["terminal_focused_program"] = native_program
+        scope["terminal_command"] = native_command
+        scope["terminal_is_zellij"] = "false"
         return scope
 
-    scope["ghostty_program"] = "zellij"
-    scope["ghostty_command"] = "zellij"
-    scope["ghostty_is_zellij"] = "true"
+    scope["terminal_program"] = "zellij"
+    scope["terminal_command"] = "zellij"
+    scope["terminal_is_zellij"] = "true"
 
     state = _zellij_state(zellij, session, terminal["title"])
     scope["zellij_session"] = session
@@ -413,13 +595,13 @@ def _detect_scope() -> dict[str, str]:
         scope.update(_zellij_scope_values(session, state))
     else:
         scope["zellij_program"] = _UNKNOWN
-    scope["ghostty_focused_program"] = scope["zellij_program"]
+    scope["terminal_focused_program"] = scope["zellij_program"]
     return scope
 
 
 @mod.scope
-def samwho_ghostty_scope() -> dict[str, str]:
-    """Expose Ghostty and nested Zellij metadata as user.* scope values."""
+def samwho_terminal_scope() -> dict[str, str]:
+    """Expose terminal and nested Zellij metadata as user.* scope values."""
     with _state_lock:
         return dict(_current_scope)
 
@@ -432,12 +614,12 @@ def _publish(new_scope: dict[str, str]) -> None:
         _current_scope = new_scope
 
     print(
-        "user.ghostty_program = "
-        f"{new_scope['ghostty_program']}; "
-        f"user.ghostty_focused_program = {new_scope['ghostty_focused_program']}; "
+        "user.terminal_program = "
+        f"{new_scope['terminal_program']}; "
+        f"user.terminal_focused_program = {new_scope['terminal_focused_program']}; "
         f"user.zellij_program = {new_scope['zellij_program']}"
     )
-    cron.after("0ms", samwho_ghostty_scope.update)
+    cron.after("0ms", samwho_terminal_scope.update)
 
 
 def _refresh_worker_loop() -> None:
@@ -446,10 +628,10 @@ def _refresh_worker_loop() -> None:
         try:
             new_scope = _detect_scope()
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
-            print(f"ghostty program query failed: {error}")
+            print(f"terminal program query failed: {error}")
             new_scope = {key: _NONE for key in _SCOPE_KEYS}
-            new_scope["ghostty_program"] = _UNKNOWN
-            new_scope["ghostty_is_zellij"] = _UNKNOWN
+            new_scope["terminal_program"] = _UNKNOWN
+            new_scope["terminal_is_zellij"] = _UNKNOWN
 
         # Keep scope publication in Talon's managed callback thread; all
         # AppleScript/subprocess work happened on this long-lived worker.
@@ -471,7 +653,7 @@ def _ensure_refresh_worker() -> None:
     threading.Thread(
         target=_refresh_worker_loop,
         daemon=True,
-        name="ghostty-scope-refresh",
+        name="terminal-scope-refresh",
     ).start()
 
 
@@ -516,20 +698,20 @@ def _finish_poll(revision: int, new_scope: dict[str, str]) -> None:
 
 
 def _schedule_poll(*_args: object) -> None:
-    """Debounce Ghostty UI events before a background metadata query."""
+    """Debounce terminal UI events before a background metadata query."""
     global _refresh_job, _refresh_revision
 
     # Window-title events are global. Ignore unrelated applications unless the
-    # last published scope still contains Ghostty data that needs clearing.
+    # last published scope still contains terminal data that needs clearing.
     try:
         active_app = ui.active_app()
-        ghostty_active = active_app is not None and active_app.bundle == _GHOSTTY_BUNDLE
+        terminal_active = active_app is not None and active_app.bundle in _TERMINAL_BUNDLES
     except (AttributeError, RuntimeError, ui.UIErr):
-        ghostty_active = True
-    if not ghostty_active:
+        terminal_active = True
+    if not terminal_active:
         with _state_lock:
-            has_stale_ghostty_scope = _current_scope["ghostty_program"] != _NONE
-        if not has_stale_ghostty_scope:
+            has_stale_terminal_scope = _current_scope["terminal_program"] != _NONE
+        if not has_stale_terminal_scope:
             return
 
     with _refresh_lock:
@@ -539,9 +721,9 @@ def _schedule_poll(*_args: object) -> None:
     _refresh_job = cron.after("50ms", _start_poll)
 
 
-# Talon reports application/window activation and title changes. Ghostty uses
-# its focused terminal title for selected tabs/splits, so these events cover
-# normal Ghostty and zellij navigation without a standing timer.
+# Talon reports application/window activation and title changes. Both supported
+# terminals update their visible title as focus changes, so these events cover
+# native and Zellij navigation without a standing timer.
 ui.register("app_activate", _schedule_poll)
 ui.register("app_deactivate", _schedule_poll)
 ui.register("win_focus", _schedule_poll)
@@ -699,7 +881,7 @@ class GhosttyCommandSearchActions:
 native_ghostty_ctx = Context()
 native_ghostty_ctx.matches = """
 app: samwho_ghostty
-user.ghostty_is_zellij: false
+user.terminal_is_zellij: false
 """
 
 
@@ -721,12 +903,12 @@ class NativeGhosttyUserActions:
 class GhosttyFileManagerActions:
     def file_manager_current_path() -> str:
         with _state_lock:
-            if _current_scope["ghostty_is_zellij"] == "true":
+            if _current_scope["terminal_is_zellij"] == "true":
                 path = _current_scope["zellij_cwd"]
                 if path in (_NONE, _UNKNOWN):
-                    path = _current_scope["ghostty_cwd"]
+                    path = _current_scope["terminal_cwd"]
             else:
-                path = _current_scope["ghostty_cwd"]
+                path = _current_scope["terminal_cwd"]
 
         if path in (_NONE, _UNKNOWN):
             raise RuntimeError("Ghostty did not report the current directory")
