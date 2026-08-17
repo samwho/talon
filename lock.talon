@@ -1,3 +1,3 @@
 lock screen:
-    user.sleep()
+    user.samwho_sleep()
     key(cmd-ctrl-l)

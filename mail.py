@@ -1,11 +1,14 @@
-from talon import Context, Module, actions, ui, app
+from talon import Context, Module, actions, app, ui
 
 mod = Module()
-ctx = Context()
-
-ctx.matches = """
+mod.apps.samwho_apple_mail = """
 os: mac
-and app.app: mail
+and app.bundle: com.apple.mail
+"""
+
+ctx = Context()
+ctx.matches = """
+app: samwho_apple_mail
 """
 
 
@@ -29,9 +32,8 @@ def mail_front_message_viewer():
     for i, message_viewer_window in enumerate(mail.message_viewers.window()):
         if message_viewer_window == front_window:
             return mail.message_viewers[i]
-    else:
-        app.notify("Unable to locate front message viewer")
-        return None
+    app.notify("Unable to locate front message viewer")
+    return None
 
 
 def mail_selected_messages():
@@ -43,7 +45,7 @@ def mail_selected_messages():
 
 @ctx.action_class("user")
 class UserActions:
-    def mail_select_last_message():
+    def samwho_mail_select_last_message():
         if not (messages_table := mail_messages_table()):
             return
 
@@ -52,7 +54,7 @@ class UserActions:
         ][-1]
         last_row.AXSelected = True
 
-    def mail_select_message(offset: int):
+    def samwho_mail_select_message(offset: int):
         if not (messages_table := mail_messages_table()):
             return
 
@@ -78,7 +80,7 @@ class UserActions:
 
         children[desired_index].AXSelected = True
 
-    def mail_select_unread_message():
+    def samwho_mail_select_unread_message():
         if not (messages_table := mail_messages_table()):
             return
 
@@ -104,15 +106,15 @@ class UserActions:
         actions.key("cmd-alt-f")
         actions.insert(text)
 
-    def mail_mark_as_read():
+    def samwho_mail_mark_as_read():
         for selected_message in mail_selected_messages():
             selected_message.read_status.set(True)
 
-    def mail_mark_as_unread():
+    def samwho_mail_mark_as_unread():
         for selected_message in mail_selected_messages():
             selected_message.read_status.set(False)
 
-    def mail_download_images():
+    def samwho_mail_download_images():
         mail = mail_app()
         try:
             mail.active_window.element.children.find_one(
@@ -124,20 +126,20 @@ class UserActions:
 
 @mod.action_class
 class Actions:
-    def mail_select_last_message():
+    def samwho_mail_select_last_message():
         """Select the last message in the currently focused Apple Mail message viewer"""
 
-    def mail_select_message(offset: int):
+    def samwho_mail_select_message(offset: int):
         """Navigate to message offset from selected message"""
 
-    def mail_mark_as_read():
+    def samwho_mail_mark_as_read():
         """Mark the selected messages as read"""
 
-    def mail_mark_as_unread():
+    def samwho_mail_mark_as_unread():
         """Mark the selected messages as unread"""
 
-    def mail_download_images():
+    def samwho_mail_download_images():
         """Download images in Apple Mail"""
 
-    def mail_select_unread_message():
+    def samwho_mail_select_unread_message():
         """Select the first unread message in the currently focused Apple Mail message viewer"""

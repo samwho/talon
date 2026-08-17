@@ -1,6 +1,6 @@
 tag: browser
-title: /Gmail/
---
+browser.host: mail.google.com
+-
 
 ^archive$:
   key(shift-e)

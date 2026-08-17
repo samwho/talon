@@ -40,6 +40,12 @@ does not look like normal Python to static type checkers.
 - `.talon` command files call Python actions with `user.action_name(...)`.
 - It is normal for Talon APIs such as `actions.user`, `settings.get`, and app UI
   objects to be dynamically typed or broad in the bundled stubs.
+- Prefix new personal actions, modes, settings, and other declarations with
+  `samwho_` unless they intentionally implement a Community contract. Talon
+  custom action names cannot contain dots, so use `user.samwho_*` rather than a
+  nested `user.samwho.*` namespace. Keep the established `user.terminal_*` and
+  `user.zellij_*` metadata names stable. `user.terminal_*` is shared by the
+  supported terminal emulators; `user.zellij_*` describes a nested Zellij pane.
 
 ## Editing Guidance
 

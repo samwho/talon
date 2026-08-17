@@ -1,40 +1,43 @@
-from talon import Context, actions
+from talon import Context, Module, actions
+
+mod = Module()
+mod.apps.samwho_beeper = """
+os: mac
+and app.bundle: com.automattic.beeper.desktop
+"""
 
 ctx = Context()
-ctx.matches = r"""
-os: mac
-app: beeper
-"""
+ctx.matches = "app: samwho_beeper"
 
 
 @ctx.action_class("user")
 class UserActions:
     def messaging_workspace_previous():
-        pass
+        raise RuntimeError("Beeper workspace navigation is not configured")
 
     def messaging_workspace_next():
-        pass
+        raise RuntimeError("Beeper workspace navigation is not configured")
 
     def messaging_channel_previous():
-        pass
+        raise RuntimeError("Beeper channel navigation is not configured")
 
     def messaging_channel_next():
-        pass
+        raise RuntimeError("Beeper channel navigation is not configured")
 
     def messaging_unread_previous():
-        pass
+        raise RuntimeError("Beeper previous-unread navigation is not configured")
 
     def messaging_unread_next():
         actions.key("cmd-u")
 
     def messaging_mark_workspace_read():
-        pass
+        raise RuntimeError("Beeper workspace read-state control is not configured")
 
     def messaging_mark_channel_read():
-        pass
+        raise RuntimeError("Beeper channel read-state control is not configured")
 
     def messaging_upload_file():
-        pass
+        raise RuntimeError("Beeper file upload is not configured")
 
     def messaging_open_search():
         actions.key("cmd-k")

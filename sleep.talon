@@ -5,4 +5,4 @@ mode: sleep
 not speech.engine: dragon
 -
 ^talon sleep$:
-  user.noop()
+  user.samwho_noop()
