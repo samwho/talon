@@ -23,7 +23,7 @@ surface close: user.samwho_ghostty_action("close_surface")
 surface title: user.samwho_ghostty_action("prompt_surface_title")
 
 # The shared splits vocabulary covers the common operations. These aliases
-# retain Ghostty's more explicit create/focus/resize controls.
+# retain Ghostty's more explicit create/focus controls.
 split new right: user.samwho_ghostty_action("new_split:right")
 split new left: user.samwho_ghostty_action("new_split:left")
 split new down: user.samwho_ghostty_action("new_split:down")
@@ -34,10 +34,16 @@ split focus up: user.samwho_ghostty_action("goto_split:up")
 split focus down: user.samwho_ghostty_action("goto_split:down")
 split focus left: user.samwho_ghostty_action("goto_split:left")
 split focus right: user.samwho_ghostty_action("goto_split:right")
-split resize up: user.samwho_ghostty_action("resize_split:up,10")
-split resize down: user.samwho_ghostty_action("resize_split:down,10")
-split resize left: user.samwho_ghostty_action("resize_split:left,10")
-split resize right: user.samwho_ghostty_action("resize_split:right,10")
+# Ghostty moves the nearest split boundary in the named direction. For example,
+# shrinking a bottom split down moves its top boundary down.
+ghostty grow up: user.samwho_ghostty_action("resize_split:up,30")
+ghostty grow down: user.samwho_ghostty_action("resize_split:down,30")
+ghostty grow left: user.samwho_ghostty_action("resize_split:left,30")
+ghostty grow right: user.samwho_ghostty_action("resize_split:right,30")
+ghostty shrink up: user.samwho_ghostty_action("resize_split:up,30")
+ghostty shrink down: user.samwho_ghostty_action("resize_split:down,30")
+ghostty shrink left: user.samwho_ghostty_action("resize_split:left,30")
+ghostty shrink right: user.samwho_ghostty_action("resize_split:right,30")
 split equalize: user.samwho_ghostty_action("equalize_splits")
 split zoom: user.samwho_ghostty_action("toggle_split_zoom")
 
