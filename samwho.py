@@ -1,6 +1,6 @@
-import os
+import subprocess
 
-from talon import Module, actions, app, noise
+from talon import Module, actions, app, noise, ui
 from talon.plugins import eye_zoom_mouse
 
 eye_zoom_mouse.config.eye_avg = 7
@@ -188,9 +188,26 @@ class Actions:
         noise.register("pop", _samwho_stop_dictation)
 
     def samwho_talon_restart():
-        """Restart talon"""
-        print("Restarting Talon...")
-        os.system("~/bin/restart-talon > /tmp/talon-restart-status.txt 2>&1")
+        """Restart Talon through macOS Launch Services."""
+        # The delayed, detached launcher outlives this Talon process. Using the
+        # bundle ID instead of an app path works when Talon is installed in a
+        # different location on either Mac.
+        subprocess.Popen(
+            [
+                "/bin/sh",
+                "-c",
+                "sleep 1; exec /usr/bin/open -b com.talonvoice.Talon",
+            ],
+            close_fds=True,
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        for running_app in ui.apps():
+            if running_app.bundle == "com.talonvoice.Talon":
+                running_app.quit()
+                return
 
 
 def _samwho_stop_dictation(_active):
