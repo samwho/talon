@@ -7,6 +7,7 @@ eye_zoom_mouse.config.eye_avg = 7
 
 mod = Module()
 _hiss_scroll_up = False
+_screenshot_selecting = False
 
 
 def _samwho_on_ready():
@@ -15,6 +16,7 @@ def _samwho_on_ready():
 
 mod.mode("samwho_whisper", desc="For dictation outside of Talon")
 mod.mode("samwho_voicenote", desc="For recording voicenotes")
+mod.mode("samwho_screenshot", desc="For selecting a screenshot with eye tracking")
 
 app.register("ready", _samwho_on_ready)
 
@@ -131,17 +133,23 @@ class Actions:
             actions.user.samwho_track_on()
 
     def samwho_screenshot_start():
-        """Start a screenshot"""
+        """Enter screenshot mode and wait for two pops to select an area."""
+        global _screenshot_selecting
+        _screenshot_selecting = False
         actions.sleep(0.1)
-        actions.key("f13")
-        actions.sleep(0.1)
-        actions.user.mouse_drag(0)
         actions.user.samwho_track_on()
+        actions.mode.enable("user.samwho_screenshot")
+        actions.mode.disable("command")
+        actions.key("f13")
+        noise.register("pop", _samwho_screenshot_pop)
 
     def samwho_screenshot_end():
-        """End a screenshot"""
+        """Take the screenshot and leave screenshot mode."""
         actions.user.mouse_drag_end()
         actions.user.samwho_track_off()
+        actions.mode.disable("user.samwho_screenshot")
+        actions.mode.enable("command")
+        noise.unregister("pop", _samwho_screenshot_pop)
 
     def samwho_track_on():
         """Turn on mouse tracking"""
@@ -208,6 +216,16 @@ class Actions:
             if running_app.bundle == "com.talonvoice.Talon":
                 running_app.quit()
                 return
+
+
+def _samwho_screenshot_pop(_active):
+    """Start the selection on the first pop and take the screenshot on the second."""
+    global _screenshot_selecting
+    if not _screenshot_selecting:
+        actions.user.mouse_drag(0)
+        _screenshot_selecting = True
+    else:
+        actions.user.samwho_screenshot_end()
 
 
 def _samwho_stop_dictation(_active):

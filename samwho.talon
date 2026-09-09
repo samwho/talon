@@ -49,9 +49,6 @@ key(alt-ctrl-cmd-shift-b):
 screenshot:
   user.samwho_screenshot_start()
 
-take:
-  user.samwho_screenshot_end()
-
 ^talon restart$:
   user.samwho_talon_restart()
 
