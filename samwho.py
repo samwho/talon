@@ -1,10 +1,6 @@
 import subprocess
 
 from talon import Module, actions, app, noise, ui
-from talon.plugins import eye_zoom_mouse
-
-eye_zoom_mouse.config.eye_avg = 7
-
 mod = Module()
 _hiss_scroll_up = False
 _screenshot_selecting = False
