@@ -3,9 +3,49 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import quote, urlencode
 
-from talon import Module
+from talon import Context, Module, actions, ui
 
 mod = Module()
+mod.tag(
+    "samwho_cleanshot_installed",
+    desc="Active when CleanShot X is installed on this Mac",
+)
+
+
+def _is_cleanshot_installed() -> bool:
+    common_locations = (
+        Path("/Applications/CleanShot X.app"),
+        Path.home() / "Applications/CleanShot X.app",
+    )
+    if any(path.exists() for path in common_locations):
+        return True
+
+    try:
+        result = subprocess.run(
+            [
+                "/usr/bin/mdfind",
+                "kMDItemCFBundleIdentifier == 'pl.maketheweb.cleanshotx'",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=1,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+ctx_availability = Context()
+if _is_cleanshot_installed():
+    ctx_availability.tags = ["user.samwho_cleanshot_installed"]
+
+ctx_mac = Context()
+ctx_mac.matches = """
+os: mac
+tag: user.samwho_cleanshot_installed
+"""
 
 CaptureAction = Literal["copy", "save", "annotate", "upload", "pin"]
 SettingsTab = Literal[
@@ -217,6 +257,73 @@ class Cleanshot:
     def open_settings(tab: SettingsTab | None = None) -> None:
         """Open CleanShot settings, optionally on a specific tab."""
         Cleanshot._open("open-settings", tab=tab)
+
+
+def _capture_rect(rect: ui.Rect, action: CaptureAction) -> None:
+    """Capture a Talon rectangle using CleanShot's display-local coordinates."""
+    screens = ui.screens()
+
+    def overlap_area(screen: ui.Screen) -> float:
+        screen_rect = screen.rect
+        width = max(
+            0,
+            min(rect.x + rect.width, screen_rect.x + screen_rect.width)
+            - max(rect.x, screen_rect.x),
+        )
+        height = max(
+            0,
+            min(rect.y + rect.height, screen_rect.y + screen_rect.height)
+            - max(rect.y, screen_rect.y),
+        )
+        return width * height
+
+    selected_screen = max(screens, key=overlap_area)
+    screen_rect = selected_screen.rect
+    Cleanshot.capture_area(
+        x=round(rect.x - screen_rect.x),
+        y=round(screen_rect.height - (rect.y - screen_rect.y) - rect.height),
+        width=round(rect.width),
+        height=round(rect.height),
+        display=screens.index(selected_screen) + 1,
+        action=action,
+    )
+
+
+@ctx_mac.action_class("user")
+class ScreenshotActions:
+    def screenshot(screen_number: int | None = None):
+        if screen_number is None:
+            Cleanshot.capture_fullscreen(action="save")
+            return
+
+        selected_screen = actions.user.screens_get_by_number(screen_number)
+        _capture_rect(selected_screen.rect, "save")
+
+    def screenshot_window():
+        _capture_rect(ui.active_window().rect, "save")
+
+    def screenshot_selection():
+        Cleanshot.capture_area(action="save")
+
+    def screenshot_selection_clip():
+        Cleanshot.capture_area(action="copy")
+
+    def screenshot_settings():
+        Cleanshot.open_settings("screenshots")
+
+    def screenshot_clipboard(screen_number: int | None = None):
+        if screen_number is None:
+            Cleanshot.capture_fullscreen(action="copy")
+            return
+
+        selected_screen = actions.user.screens_get_by_number(screen_number)
+        _capture_rect(selected_screen.rect, "copy")
+
+    def screenshot_window_clipboard():
+        _capture_rect(ui.active_window().rect, "copy")
+
+    def screenshot_rect(rect: ui.Rect, title: str = ""):
+        _capture_rect(rect, "save")
 
 
 @mod.action_class

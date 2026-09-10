@@ -46,9 +46,6 @@ key(alt-ctrl-cmd-shift-a):
 key(alt-ctrl-cmd-shift-b):
   user.samwho_mouse_hiss_toggle()
 
-screenshot:
-  user.samwho_screenshot_start()
-
 ^talon restart$:
   user.samwho_talon_restart()
 
