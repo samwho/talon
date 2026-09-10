@@ -1,9 +1,16 @@
 import subprocess
 
-from talon import Module, actions, app, noise, ui
+from talon import Context, Module, actions, app, noise, ui
 mod = Module()
+
+ctx_drag_command = Context()
+ctx_drag_command.matches = """
+os: mac
+mode: command
+"""
 _hiss_scroll_up = False
 _screenshot_selecting = False
+_dragging = False
 
 
 def _samwho_on_ready():
@@ -13,8 +20,18 @@ def _samwho_on_ready():
 mod.mode("samwho_whisper", desc="For dictation outside of Talon")
 mod.mode("samwho_voicenote", desc="For recording voicenotes")
 mod.mode("samwho_screenshot", desc="For selecting a screenshot with eye tracking")
+mod.mode("samwho_drag", desc="For dragging with eye tracking")
 
 app.register("ready", _samwho_on_ready)
+
+
+@ctx_drag_command.action_class("user")
+class DragCommandActions:
+    def mouse_drag(button: int):
+        if button == 0:
+            actions.user.samwho_drag_start()
+        else:
+            actions.next(button)
 
 
 @mod.action_class
@@ -147,6 +164,24 @@ class Actions:
         actions.mode.enable("command")
         noise.unregister("pop", _samwho_screenshot_pop)
 
+    def samwho_drag_start():
+        """Enter drag mode and wait for two pops to start and end the drag."""
+        global _dragging
+        _dragging = False
+        actions.sleep(0.1)
+        actions.user.samwho_track_on()
+        actions.mode.enable("user.samwho_drag")
+        actions.mode.disable("command")
+        noise.register("pop", _samwho_drag_pop)
+
+    def samwho_drag_end():
+        """End the current drag and leave drag mode."""
+        actions.user.mouse_drag_end()
+        actions.user.samwho_track_off()
+        actions.mode.disable("user.samwho_drag")
+        actions.mode.enable("command")
+        noise.unregister("pop", _samwho_drag_pop)
+
     def samwho_track_on():
         """Turn on mouse tracking"""
         if actions.tracking.control_enabled():
@@ -218,10 +253,22 @@ def _samwho_screenshot_pop(_active):
     """Start the selection on the first pop and take the screenshot on the second."""
     global _screenshot_selecting
     if not _screenshot_selecting:
-        actions.user.mouse_drag(0)
+        actions.user.mouse_drag_end()
+        actions.mouse_drag(0)
         _screenshot_selecting = True
     else:
         actions.user.samwho_screenshot_end()
+
+
+def _samwho_drag_pop(_active):
+    """Start dragging on the first pop and finish on the second."""
+    global _dragging
+    if not _dragging:
+        actions.user.mouse_drag_end()
+        actions.mouse_drag(0)
+        _dragging = True
+    else:
+        actions.user.samwho_drag_end()
 
 
 def _samwho_stop_dictation(_active):
