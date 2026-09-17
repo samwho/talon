@@ -57,7 +57,6 @@ def _perform_ghostty_action(action: str) -> None:
 
 
 # Implement Community's shared tab contract for Ghostty.
-# Zellij has a more-specific context in zellij.py, so its own tab bindings win.
 ghostty_ctx = Context()
 ghostty_ctx.matches = """
 app: samwho_ghostty
@@ -162,7 +161,7 @@ class GhosttyCommandSearchActions:
 native_ghostty_ctx = Context()
 native_ghostty_ctx.matches = """
 app: samwho_ghostty
-user.terminal_is_zellij: false
+user.terminal_is_herdr: false
 """
 
 

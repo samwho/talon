@@ -1,79 +1,30 @@
 import json
 import os
 import queue
-import re
 import shlex
 import shutil
 import subprocess
 import threading
 from typing import Any
-from urllib.parse import unquote, urlparse
 
 from talon import Context, Module, cron, ui
 
 mod = Module()
 mod.apps.samwho_terminal = r"""
 os: mac
-and app.bundle: /^(com\.mitchellh\.ghostty|com\.github\.wez\.wezterm)$/
+and app.bundle: com.mitchellh.ghostty
 """
 
 _GHOSTTY_BUNDLE = "com.mitchellh.ghostty"
-_WEZTERM_BUNDLE = "com.github.wez.wezterm"
-_TERMINAL_BUNDLES = {_GHOSTTY_BUNDLE, _WEZTERM_BUNDLE}
+_TERMINAL_BUNDLES = {_GHOSTTY_BUNDLE}
 _UNKNOWN = "unknown"
 _NONE = "none"
 
 # All scope values are strings so they can be used directly in .talon context
 # headers. Values are deliberately present as "none" when their source is not
-# active, which clears stale zellij data when switching to a native terminal.
-# `terminal_focused_program` normalizes native and nested-Zellij programs for
-# app contexts while `terminal_program` retains the host process identity.
-_PANE_SCOPE_FIELDS = {
-    "is_focused": "zellij_pane_focused",
-    "is_fullscreen": "zellij_pane_fullscreen",
-    "is_floating": "zellij_pane_floating",
-    "is_suppressed": "zellij_pane_suppressed",
-    "exited": "zellij_pane_exited",
-    "exit_status": "zellij_pane_exit_status",
-    "is_held": "zellij_pane_held",
-    "pane_x": "zellij_pane_x",
-    "pane_content_x": "zellij_pane_content_x",
-    "pane_y": "zellij_pane_y",
-    "pane_content_y": "zellij_pane_content_y",
-    "pane_rows": "zellij_pane_rows",
-    "pane_content_rows": "zellij_pane_content_rows",
-    "pane_columns": "zellij_pane_columns",
-    "pane_content_columns": "zellij_pane_content_columns",
-    "cursor_coordinates_in_pane": "zellij_pane_cursor_coordinates",
-    "terminal_command": "zellij_terminal_command",
-    "plugin_url": "zellij_plugin_url",
-    "is_selectable": "zellij_pane_selectable",
-    "index_in_pane_group": "zellij_pane_index_in_group",
-    "default_fg": "zellij_pane_default_fg",
-    "default_bg": "zellij_pane_default_bg",
-}
-
-_TAB_SCOPE_FIELDS = {
-    "position": "zellij_tab_position",
-    "name": "zellij_tab_name",
-    "tab_id": "zellij_tab_id",
-    "active": "zellij_tab_active",
-    "panes_to_hide": "zellij_tab_panes_to_hide",
-    "is_fullscreen_active": "zellij_tab_fullscreen",
-    "is_sync_panes_active": "zellij_tab_sync_panes",
-    "are_floating_panes_visible": "zellij_tab_floating_visible",
-    "other_focused_clients": "zellij_tab_other_focused_clients",
-    "active_swap_layout_name": "zellij_tab_swap_layout",
-    "is_swap_layout_dirty": "zellij_tab_layout_dirty",
-    "viewport_rows": "zellij_tab_viewport_rows",
-    "viewport_columns": "zellij_tab_viewport_columns",
-    "display_area_rows": "zellij_tab_display_area_rows",
-    "display_area_columns": "zellij_tab_display_area_columns",
-    "selectable_tiled_panes_count": "zellij_tab_tiled_panes",
-    "selectable_floating_panes_count": "zellij_tab_floating_panes",
-    "has_bell_notification": "zellij_tab_bell",
-    "is_flashing_bell": "zellij_tab_flashing_bell",
-}
+# active, which clears stale Herdr data when switching to a native terminal.
+# `terminal_focused_program` normalizes native and Herdr programs while
+# `terminal_program` retains the host process identity.
 
 _SCOPE_KEYS = {
     "terminal_program",
@@ -87,17 +38,17 @@ _SCOPE_KEYS = {
     "terminal_tab_id",
     "terminal_tab_name",
     "terminal_tab_index",
-    "terminal_is_zellij",
-    "zellij_session",
-    "zellij_program",
-    "zellij_command",
-    "zellij_title",
-    "zellij_cwd",
-    "zellij_pane_id",
-    "zellij_pane_numeric_id",
-    "zellij_pane_type",
-    *_PANE_SCOPE_FIELDS.values(),
-    *_TAB_SCOPE_FIELDS.values(),
+    "terminal_is_herdr",
+    "herdr_workspace_id",
+    "herdr_tab_id",
+    "herdr_pane_id",
+    "herdr_terminal_id",
+    "herdr_program",
+    "herdr_command",
+    "herdr_title",
+    "herdr_cwd",
+    "herdr_agent",
+    "herdr_agent_status",
 }
 
 _state_lock = threading.Lock()
@@ -122,32 +73,12 @@ def _scope_text(value: Any) -> str:
     return text or _NONE
 
 
-def _first_present(*values: Any) -> Any:
-    for value in values:
-        if value is not None:
-            return value
-    return None
-
-
-def _wezterm_path() -> str | None:
-    """Find WezTerm's CLI even when Talon's PATH does not include Homebrew."""
+def _herdr_path() -> str | None:
+    """Find Herdr even when Talon's PATH does not include Homebrew."""
     candidates = [
-        shutil.which("wezterm"),
-        "/opt/homebrew/bin/wezterm",
-        "/usr/local/bin/wezterm",
-    ]
-    for candidate in candidates:
-        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-    return None
-
-
-def _zellij_path() -> str | None:
-    """Find zellij even when Talon's PATH does not include Homebrew."""
-    candidates = [
-        shutil.which("zellij"),
-        "/opt/homebrew/bin/zellij",
-        "/usr/local/bin/zellij",
+        shutil.which("herdr"),
+        "/opt/homebrew/bin/herdr",
+        "/usr/local/bin/herdr",
     ]
     for candidate in candidates:
         if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
@@ -197,180 +128,71 @@ def _ghostty_terminal() -> dict[str, str] | None:
     return result
 
 
-def _wezterm_terminal() -> dict[str, str] | None:
-    """Return focused WezTerm pane metadata through its local mux CLI."""
-    active_app = ui.active_app()
-    if not active_app or active_app.bundle != _WEZTERM_BUNDLE:
-        return None
-
-    window = ui.active_window()
-    window_title = _scope_text(window.title if window else None)
-    if window_title == _NONE:
-        # macOS can report an empty title while a newly activated WezTerm
-        # window is still being constructed; a later title event will retry.
-        return None
-
-    result = {
-        "title": window_title,
-        "cwd": _NONE,
-        "terminal_id": _NONE,
-        "window_id": _NONE,
-        "window_title": window_title,
-        "tab_id": _NONE,
-        "tab_name": _NONE,
-        "tab_index": _NONE,
-        "command": window_title,
-    }
-    wezterm = _wezterm_path()
-    if wezterm is None:
-        return result
-
-    cli_result = _run([wezterm, "cli", "list", "--format", "json"])
-    if cli_result.returncode != 0:
-        return result
-    try:
-        panes = json.loads(cli_result.stdout)
-    except json.JSONDecodeError:
-        return result
-    if not isinstance(panes, list):
-        return result
-
-    selected_tab_index, pane_title = _wezterm_selected_tab(window_title)
-    # `wezterm cli list` does not update `window_title` when a tab changes,
-    # but the selected pane/tab title is present in the macOS window title.
-    # Use it to identify the CLI window before resolving its selected tab.
-    matching_window_ids = {
-        pane.get("window_id")
-        for pane in panes
-        if _scope_text(pane.get("title")) == pane_title
-        or _scope_text(pane.get("tab_title")) == pane_title
-    }
-    if len(matching_window_ids) == 1:
-        window_id = matching_window_ids.pop()
-        window_panes = [pane for pane in panes if pane.get("window_id") == window_id]
-    elif len({pane.get("window_id") for pane in panes}) == 1:
-        window_panes = panes
-    else:
-        return result
-    tab_ids = []
-    for candidate in window_panes:
-        tab_id = candidate.get("tab_id")
-        if tab_id not in tab_ids:
-            tab_ids.append(tab_id)
-
-    # `is_active` means the focused pane *within each tab*, not the selected
-    # tab. The macOS title convention starts with `[current/total]`, which
-    # unambiguously identifies the selected tab even when its pane title is
-    # shared by other tabs.
-    if selected_tab_index is not None and 1 <= selected_tab_index <= len(tab_ids):
-        selected_tab_id = tab_ids[selected_tab_index - 1]
-        candidates = [
-            pane for pane in window_panes if pane.get("tab_id") == selected_tab_id
-        ]
-    else:
-        candidates = window_panes
-    title_matches = [
-        pane
-        for pane in candidates
-        if _scope_text(pane.get("title")) == pane_title
-        or _scope_text(pane.get("tab_title")) == pane_title
-    ]
-    active_matches = [pane for pane in candidates if pane.get("is_active") is True]
-    if len(title_matches) == 1:
-        pane = title_matches[0]
-    elif len(active_matches) == 1:
-        pane = active_matches[0]
-    elif len(candidates) == 1:
-        pane = candidates[0]
-    else:
-        return result
-    cwd = _scope_text(pane.get("cwd"))
-    if cwd.startswith("file://"):
-        cwd = _scope_text(unquote(urlparse(cwd).path))
-
-    result.update(
-        {
-            "title": _scope_text(pane.get("title")),
-            "cwd": cwd,
-            "terminal_id": _scope_text(pane.get("pane_id")),
-            "window_id": _scope_text(pane.get("window_id")),
-            "window_title": _scope_text(pane.get("window_title")),
-            "tab_id": _scope_text(pane.get("tab_id")),
-            "tab_name": _scope_text(pane.get("tab_title") or pane.get("title")),
-            "tab_index": _scope_text(tab_ids.index(pane.get("tab_id")) + 1),
-            "command": _wezterm_foreground_command(
-                _scope_text(pane.get("tty_name"))
-            ),
-        }
-    )
-    return result
-
-
-def _wezterm_selected_tab(window_title: str) -> tuple[int | None, str]:
-    """Extract WezTerm's one-based macOS selected-tab prefix, when present."""
-    match = re.match(r"^\[(\d+)/(\d+)\]\s+(.+)$", window_title)
-    if match is None:
-        return None, window_title
-    return int(match.group(1)), match.group(3)
-
-
-def _wezterm_foreground_command(tty_name: str) -> str:
-    """Return the foreground process command for a WezTerm pseudo-terminal."""
-    if tty_name in (_NONE, _UNKNOWN):
-        return _NONE
-    result = _run(
-        [
-            "/bin/ps",
-            "-t",
-            tty_name.removeprefix("/dev/"),
-            "-o",
-            "stat=",
-            "-o",
-            "command=",
-        ]
-    )
-    if result.returncode != 0:
-        return _NONE
-    for line in result.stdout.splitlines():
-        state, _, command = line.strip().partition(" ")
-        if "+" in state and command:
-            return command.strip()
-    return _NONE
-
-
 def _active_terminal() -> dict[str, str] | None:
-    """Return metadata for the active supported terminal application."""
+    """Return metadata for the active Ghostty terminal."""
     active_app = ui.active_app()
-    if not active_app:
+    if not active_app or active_app.bundle != _GHOSTTY_BUNDLE:
         return None
-    if active_app.bundle == _GHOSTTY_BUNDLE:
-        return _ghostty_terminal()
-    if active_app.bundle == _WEZTERM_BUNDLE:
-        return _wezterm_terminal()
-    return None
+    return _ghostty_terminal()
 
 
-def _zellij_sessions(zellij: str) -> list[str]:
-    result = _run([zellij, "list-sessions", "--short"])
-    if result.returncode != 0:
-        return []
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+def _herdr_scope_values(herdr: str) -> dict[str, str] | None:
+    """Return metadata for the pane focused in the active Herdr client."""
+    pane_result = _run([herdr, "pane", "current"])
+    if pane_result.returncode != 0:
+        return None
+    try:
+        response = json.loads(pane_result.stdout)
+        pane = response["result"]["pane"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+    if not isinstance(pane, dict):
+        return None
 
+    pane_id = pane.get("pane_id")
+    if not pane_id:
+        return None
 
-def _zellij_session_for_title(title: str, sessions: list[str]) -> str | None:
-    """Match a terminal's '<session> | <pane title>' Zellij title convention."""
-    matches = [
-        session
-        for session in sessions
-        if title == session or title.startswith(f"{session} | ")
-    ]
-    if matches:
-        return max(matches, key=len)
-    return None
+    agent = pane.get("agent")
+    command = agent
+    if not agent:
+        process_result = _run([herdr, "pane", "process-info", "--pane", pane_id])
+        if process_result.returncode == 0:
+            try:
+                process_response = json.loads(process_result.stdout)
+                process_info = process_response["result"]["process_info"]
+                process_group = process_info.get("foreground_process_group_id")
+                processes = process_info.get("foreground_processes", [])
+                foreground = [
+                    process
+                    for process in processes
+                    if process.get("pid") == process_group
+                ]
+                if len(foreground) == 1:
+                    process = foreground[0]
+                    command = process.get("cmdline") or process.get("argv0")
+            except (json.JSONDecodeError, KeyError, TypeError):
+                pass
+
+    program = _scope_text(agent) if agent else _program_name(command)
+    return {
+        "herdr_workspace_id": _scope_text(pane.get("workspace_id")),
+        "herdr_tab_id": _scope_text(pane.get("tab_id")),
+        "herdr_pane_id": _scope_text(pane_id),
+        "herdr_terminal_id": _scope_text(pane.get("terminal_id")),
+        "herdr_program": program,
+        "herdr_command": _scope_text(command),
+        "herdr_title": _scope_text(
+            pane.get("title") or pane.get("terminal_title_stripped")
+        ),
+        "herdr_cwd": _scope_text(pane.get("foreground_cwd") or pane.get("cwd")),
+        "herdr_agent": _scope_text(agent),
+        "herdr_agent_status": _scope_text(pane.get("agent_status")),
+    }
 
 
 def _program_name(command_or_title: Any) -> str:
-    """Reduce a command/title to an executable-like value for scope matching."""
+    """Reduce a command or title to an executable-like scope value."""
     value = str(command_or_title or "").strip()
     if not value:
         return _UNKNOWN
@@ -382,158 +204,14 @@ def _program_name(command_or_title: Any) -> str:
     if not parts:
         return _UNKNOWN
 
-    program = os.path.basename(parts[0])
-    # GUI terminal launchers commonly invoke a command through a shell. For
-    # example, Pi's wrapper appears as `/bin/bash .../pi`; expose the actual
-    # script so program-scoped Talon contexts continue to identify Pi.
+    # Login shells conventionally prefix argv[0] with a hyphen.
+    program = os.path.basename(parts[0]).lstrip("-")
+    # GUI terminal launchers commonly invoke scripts through a shell.
     if program in {"bash", "zsh", "sh", "dash", "ksh"} and len(parts) > 1:
         script = os.path.basename(parts[1])
         if script and not script.startswith("-"):
             return script
     return program or _UNKNOWN
-
-
-def _zellij_state(
-    zellij: str, session: str, terminal_title: str
-) -> dict[str, Any] | None:
-    """Find the focused pane and its tab metadata for a terminal surface."""
-    list_result = _run([zellij, "--session", session, "action", "list-panes", "--json"])
-    if list_result.returncode != 0:
-        return None
-
-    try:
-        panes = json.loads(list_result.stdout)
-    except json.JSONDecodeError:
-        return None
-    if not isinstance(panes, list):
-        return None
-
-    terminal_panes = [pane for pane in panes if not pane.get("is_plugin", False)]
-    focused_panes = [pane for pane in terminal_panes if pane.get("is_focused") is True]
-
-    prefix = f"{session} | "
-    pane_title = (
-        terminal_title[len(prefix) :] if terminal_title.startswith(prefix) else ""
-    )
-    selected_pane = None
-    selected_by_title = False
-
-    # is_focused is retained for each tab, so the terminal title is the best way
-    # to identify the selected pane when a session has multiple tabs/clients.
-    if pane_title:
-        title_matches = [
-            pane
-            for pane in focused_panes
-            if str(pane.get("title", "")).strip() == pane_title
-        ]
-        if len(title_matches) == 1:
-            selected_pane = title_matches[0]
-            selected_by_title = True
-
-    tab_info: dict[str, Any] = {}
-    tab_result = _run(
-        [zellij, "--session", session, "action", "current-tab-info", "--json"]
-    )
-    if tab_result.returncode == 0:
-        try:
-            parsed_tab = json.loads(tab_result.stdout)
-            if isinstance(parsed_tab, dict):
-                tab_info = parsed_tab
-        except json.JSONDecodeError:
-            pass
-
-    # Fall back to the active tab when the title format is customized.
-    if selected_pane is None and tab_info:
-        tab_id = tab_info.get("tab_id")
-        tab_panes = [pane for pane in focused_panes if pane.get("tab_id") == tab_id]
-        if len(tab_panes) == 1:
-            selected_pane = tab_panes[0]
-
-    if selected_pane is None and len(focused_panes) == 1:
-        selected_pane = focused_panes[0]
-
-    if selected_pane is None:
-        return None
-
-    # Do not apply tab state from another client/tab to the selected pane.
-    if tab_info.get("tab_id") != selected_pane.get("tab_id"):
-        tab_info = {}
-
-    # current-tab-info is client-specific. When the terminal title identified a
-    # different client/tab, list-tabs still provides the matching tab's metadata.
-    if not tab_info:
-        tabs_result = _run(
-            [zellij, "--session", session, "action", "list-tabs", "--json"]
-        )
-        if tabs_result.returncode == 0:
-            try:
-                tabs = json.loads(tabs_result.stdout)
-            except json.JSONDecodeError:
-                tabs = []
-            if isinstance(tabs, list):
-                matching_tabs = [
-                    tab
-                    for tab in tabs
-                    if tab.get("tab_id") == selected_pane.get("tab_id")
-                ]
-                if len(matching_tabs) == 1:
-                    tab_info = matching_tabs[0]
-
-    # The title match came from the selected terminal surface, so it is the
-    # active tab for our purposes even if Zellij reports another client's tab
-    # as globally active.
-    if selected_by_title:
-        tab_info = dict(tab_info)
-        tab_info["tab_id"] = selected_pane.get("tab_id")
-        tab_info["active"] = True
-
-    return {"pane": selected_pane, "tab": tab_info}
-
-
-def _zellij_scope_values(session: str, state: dict[str, Any]) -> dict[str, str]:
-    pane = state["pane"]
-    tab = state.get("tab", {})
-    command = pane.get("pane_command")
-    title = pane.get("title")
-
-    values = {
-        "zellij_session": session,
-        "zellij_program": _program_name(command or title),
-        "zellij_command": _scope_text(command),
-        "zellij_title": _scope_text(title),
-        "zellij_cwd": _scope_text(pane.get("pane_cwd")),
-        "zellij_pane_id": _scope_text(
-            f"{'plugin' if pane.get('is_plugin') else 'terminal'}_{pane.get('id')}"
-        ),
-        "zellij_pane_numeric_id": _scope_text(pane.get("id")),
-        "zellij_pane_type": "plugin" if pane.get("is_plugin") else "terminal",
-        "zellij_tab_id": _scope_text(
-            _first_present(pane.get("tab_id"), tab.get("tab_id"))
-        ),
-        "zellij_tab_name": _scope_text(
-            _first_present(pane.get("tab_name"), tab.get("name"))
-        ),
-    }
-
-    for source, target in _PANE_SCOPE_FIELDS.items():
-        values[target] = _scope_text(pane.get(source))
-
-    for source, target in _TAB_SCOPE_FIELDS.items():
-        values[target] = _scope_text(tab.get(source))
-
-    # These are present in pane JSON and are useful even when current-tab-info
-    # cannot identify tab state for a multi-client session.
-    values["zellij_tab_position"] = _scope_text(
-        _first_present(pane.get("tab_position"), tab.get("position"))
-    )
-    values["zellij_tab_name"] = _scope_text(
-        _first_present(pane.get("tab_name"), tab.get("name"))
-    )
-    values["zellij_tab_id"] = _scope_text(
-        _first_present(pane.get("tab_id"), tab.get("tab_id"))
-    )
-
-    return values
 
 
 def _detect_scope() -> dict[str, str]:
@@ -557,47 +235,35 @@ def _detect_scope() -> dict[str, str]:
 
     native_program = _program_name(terminal["command"])
     native_command = terminal["command"]
-    zellij = _zellij_path()
-    if zellij is None:
-        scope["terminal_program"] = native_program
-        scope["terminal_focused_program"] = native_program
+
+    # Herdr's configured window-title template starts with a stable marker and
+    # includes workspace/tab/pane data, so Ghostty emits a title event whenever
+    # the focused virtual pane changes.
+    is_herdr = native_command.lower().startswith("herdr | ")
+    if is_herdr:
+        scope["terminal_program"] = "herdr"
         scope["terminal_command"] = native_command
-        scope["terminal_is_zellij"] = "false"
+        scope["terminal_is_herdr"] = "true"
+        herdr = _herdr_path()
+        herdr_values = _herdr_scope_values(herdr) if herdr else None
+        if herdr_values is None:
+            scope["terminal_focused_program"] = _UNKNOWN
+            scope["herdr_program"] = _UNKNOWN
+        else:
+            scope.update(herdr_values)
+            scope["terminal_focused_program"] = scope["herdr_program"]
         return scope
 
-    sessions = _zellij_sessions(zellij)
-    session = _zellij_session_for_title(terminal["title"], sessions)
-    if (
-        session is None
-        and _program_name(terminal["title"]).lower() == "zellij"
-        and len(sessions) == 1
-    ):
-        session = sessions[0]
-
-    if session is None:
-        scope["terminal_program"] = native_program
-        scope["terminal_focused_program"] = native_program
-        scope["terminal_command"] = native_command
-        scope["terminal_is_zellij"] = "false"
-        return scope
-
-    scope["terminal_program"] = "zellij"
-    scope["terminal_command"] = "zellij"
-    scope["terminal_is_zellij"] = "true"
-
-    state = _zellij_state(zellij, session, terminal["title"])
-    scope["zellij_session"] = session
-    if state is not None:
-        scope.update(_zellij_scope_values(session, state))
-    else:
-        scope["zellij_program"] = _UNKNOWN
-    scope["terminal_focused_program"] = scope["zellij_program"]
+    scope["terminal_program"] = native_program
+    scope["terminal_focused_program"] = native_program
+    scope["terminal_command"] = native_command
+    scope["terminal_is_herdr"] = "false"
     return scope
 
 
 @mod.scope
 def samwho_terminal_scope() -> dict[str, str]:
-    """Expose terminal and nested Zellij metadata as user.* scope values."""
+    """Expose terminal and nested Herdr metadata as user.* scopes."""
     with _state_lock:
         return dict(_current_scope)
 
@@ -613,7 +279,7 @@ def _publish(new_scope: dict[str, str]) -> None:
         "user.terminal_program = "
         f"{new_scope['terminal_program']}; "
         f"user.terminal_focused_program = {new_scope['terminal_focused_program']}; "
-        f"user.zellij_program = {new_scope['zellij_program']}"
+        f"user.herdr_program = {new_scope['herdr_program']}"
     )
     cron.after("0ms", samwho_terminal_scope.update)
 
@@ -627,7 +293,7 @@ def _refresh_worker_loop() -> None:
             print(f"terminal program query failed: {error}")
             new_scope = {key: _NONE for key in _SCOPE_KEYS}
             new_scope["terminal_program"] = _UNKNOWN
-            new_scope["terminal_is_zellij"] = _UNKNOWN
+            new_scope["terminal_is_herdr"] = _UNKNOWN
 
         # Keep scope publication in Talon's managed callback thread; all
         # AppleScript/subprocess work happened on this long-lived worker.
@@ -718,8 +384,9 @@ def _schedule_poll(*_args: object) -> None:
 
 
 # Talon reports application/window activation and title changes. Both supported
-# terminals update their visible title as focus changes, so these events cover
-# native and Zellij navigation without a standing timer.
+# terminals update their visible title as focus changes. Herdr's configured
+# title includes its virtual pane, so these events cover all supported nesting
+# without a standing timer.
 ui.register("app_activate", _schedule_poll)
 ui.register("app_deactivate", _schedule_poll)
 ui.register("win_focus", _schedule_poll)
@@ -736,8 +403,8 @@ app: samwho_terminal
 class TerminalFileManagerActions:
     def file_manager_current_path() -> str:
         with _state_lock:
-            if _current_scope["terminal_is_zellij"] == "true":
-                path = _current_scope["zellij_cwd"]
+            if _current_scope["terminal_is_herdr"] == "true":
+                path = _current_scope["herdr_cwd"]
                 if path in (_NONE, _UNKNOWN):
                     path = _current_scope["terminal_cwd"]
             else:
