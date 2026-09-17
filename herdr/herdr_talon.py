@@ -1,10 +1,10 @@
-import json
-import os
-import shutil
-import subprocess
 from typing import Any
 
 from talon import Context, Module
+
+from .herdr_client import call as _call
+from .herdr_client import current_pane as _current_pane
+from .herdr_client import result_list as _result_list
 
 mod = Module()
 ctx = Context()
@@ -14,58 +14,6 @@ user.terminal_is_herdr: true
 """
 
 _DIRECTIONS = {"left", "right", "up", "down"}
-
-
-def _herdr_path() -> str:
-    candidates = [
-        shutil.which("herdr"),
-        "/opt/homebrew/bin/herdr",
-        "/usr/local/bin/herdr",
-    ]
-    for candidate in candidates:
-        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-    raise RuntimeError("Could not find the Herdr executable")
-
-
-def _call(*arguments: str, timeout: float = 0.75) -> dict[str, Any]:
-    result = subprocess.run(
-        [_herdr_path(), *arguments],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        check=False,
-    )
-    if result.returncode != 0:
-        message = result.stderr.strip() or result.stdout.strip()
-        raise RuntimeError(f"Herdr command failed: {message}")
-    try:
-        response = json.loads(result.stdout)
-    except json.JSONDecodeError as error:
-        raise RuntimeError("Herdr returned invalid JSON") from error
-    if not isinstance(response, dict):
-        raise RuntimeError("Herdr returned an unexpected response")
-    return response
-
-
-def _result_list(command: tuple[str, ...], key: str) -> list[dict[str, Any]]:
-    try:
-        values = _call(*command)["result"][key]
-    except (KeyError, TypeError) as error:
-        raise RuntimeError(f"Herdr did not return {key}") from error
-    if not isinstance(values, list):
-        raise RuntimeError(f"Herdr did not return {key}")
-    return values
-
-
-def _current_pane() -> dict[str, Any]:
-    try:
-        pane = _call("pane", "current")["result"]["pane"]
-    except (KeyError, TypeError) as error:
-        raise RuntimeError("Herdr did not return its focused pane") from error
-    if not isinstance(pane, dict):
-        raise RuntimeError("Herdr did not return its focused pane")
-    return pane
 
 
 def _current_cwd(pane: dict[str, Any]) -> str | None:

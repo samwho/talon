@@ -18,7 +18,6 @@ def _samwho_on_ready():
 
 
 mod.mode("samwho_whisper", desc="For dictation outside of Talon")
-mod.mode("samwho_voicenote", desc="For recording voicenotes")
 mod.mode("samwho_screenshot", desc="For selecting a screenshot with eye tracking")
 mod.mode("samwho_drag", desc="For dragging with eye tracking")
 
@@ -208,15 +207,6 @@ class Actions:
         """Unmute microphone"""
         actions.sound.set_microphone("Scarlett Solo USB")
 
-    def samwho_start_voicenote():
-        """Start voicenote"""
-        actions.sleep(0.1)
-        actions.user.samwho_pop_zoom_off()
-        actions.mode.enable("user.samwho_voicenote")
-        actions.mode.disable("command")
-        actions.key("alt-n")
-        noise.register("pop", _samwho_stop_voicenote)
-
     def samwho_start_dictation():
         """Start dictation"""
         actions.sleep(0.1)
@@ -279,13 +269,3 @@ def _samwho_stop_dictation(_active):
     actions.mode.enable("command")
     actions.user.samwho_pop_zoom_on()
     noise.unregister("pop", _samwho_stop_dictation)
-
-
-def _samwho_stop_voicenote(_active):
-    """Stop voicenote"""
-    actions.sleep(0.1)
-    actions.key("alt-s")
-    actions.mode.disable("user.samwho_voicenote")
-    actions.mode.enable("command")
-    actions.user.samwho_pop_zoom_on()
-    noise.unregister("pop", _samwho_stop_voicenote)

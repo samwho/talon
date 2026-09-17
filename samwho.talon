@@ -29,9 +29,6 @@ scroll up:
 track:
   user.samwho_track()
 
-^copy permalink$:
-  user.vscode("issue.copyGithubPermalink")
-
 [left] (triple | trip) (touch | click) <user.timestamped_prose>:
   user.click_text(timestamped_prose)
   user.click_text(timestamped_prose)
@@ -49,31 +46,10 @@ key(alt-ctrl-cmd-shift-b):
 ^talon restart$:
   user.samwho_talon_restart()
 
-^chat gpt$:
-  key(alt-space)
-  user.samwho_start_dictation()
-
-^open chat$:
-  key(alt-space)
-  user.samwho_start_dictation()
-
-^chat with screen$:
-  user.screenshot_clipboard()
-  key(alt-space)
-  sleep(0.1)
-  edit.paste()
-  user.samwho_start_dictation()
-
 ^whisper$:
   user.samwho_start_dictation()
 
-^voice note$:
-  user.samwho_start_voicenote()
-
-^editor$:
-  user.switcher_focus("Zed")
-
-^code$:
+^(code|term)$:
   user.switcher_focus("Ghostty")
 
 ^(browse|browser|brace)$:

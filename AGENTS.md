@@ -20,8 +20,9 @@ does not look like normal Python to static type checkers.
 - `*.talon` files define spoken commands, contexts, tags, modes, settings, and
   calls into Talon actions.
 - `*.py` files define custom actions and support functions.
-- App-specific files usually match the target app name, such as `zed.talon`,
-  `mail.talon`/`mail.py`, `zen.talon`, and `beeper/`.
+- App-specific files are grouped by program. A directory typically contains
+  `<program>.talon` grammar and, when needed, `<program>_talon.py` registrations
+  plus a focused `<program>_client.py` integration layer.
 - `samwho.py` and `samwho.talon` contain general-purpose personal commands,
   wake/sleep behavior, mouse tracking toggles, correction helpers, and Obsidian
   integration.
@@ -63,7 +64,7 @@ does not look like normal Python to static type checkers.
 ## Validation
 
 - For Python syntax checks, use the local editor-only venv if present:
-  `.zed/.venv/bin/python -m py_compile <file.py>`.
+  `.venv/bin/python -m py_compile <file.py>`.
 - Talon behavior is ultimately validated by Talon loading the files and the
   relevant voice command working in the target app.
 - Static Python diagnostics can be noisy because Talon uses dynamic decorators

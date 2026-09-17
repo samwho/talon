@@ -3,7 +3,7 @@ user.terminal_focused_program: /^pi$/i
 -
 
 # Reuse Community's generic "hunt this/next/previous" search vocabulary.
-# pi.py maps those edit actions to fullscreen transcript search.
+# pi_talon.py maps those edit actions to fullscreen transcript search.
 tag(): user.find
 
 # Application controls.
@@ -76,7 +76,7 @@ dequeue: key(alt-up)
 
 # Fullscreen transcript. Community's global edit vocabulary also works here:
 # "go top/bottom", "go page up/down", and "scroll up/down" call the Pi-specific
-# edit implementations in pi.py.
+# edit implementations in pi_talon.py.
 # Scroll the fullscreen transcript by one page.
 page up: key(pageup)
 page down: key(pagedown)

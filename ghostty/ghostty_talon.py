@@ -1,14 +1,12 @@
-from typing import Any
+from talon import Context, Module, actions
 
-from talon import Context, Module, actions, ui
+from .ghostty_client import GHOSTTY_BUNDLE, perform_action
 
 mod = Module()
-mod.apps.samwho_ghostty = """
+mod.apps.samwho_ghostty = f"""
 os: mac
-and app.bundle: com.mitchellh.ghostty
+and app.bundle: {GHOSTTY_BUNDLE}
 """
-
-_GHOSTTY_BUNDLE = "com.mitchellh.ghostty"
 
 
 @mod.action_class
@@ -28,32 +26,8 @@ class GhosttyActions:
 # action directly is more reliable than synthesizing a shortcut: it continues
 # to work when the user changes Ghostty's keybind configuration, and it lets
 # voice commands reach actions that do not have a default shortcut.
-def _focused_ghostty_terminal() -> tuple[Any, Any]:
-    active_app = ui.active_app()
-    if not active_app or active_app.bundle != _GHOSTTY_BUNDLE:
-        raise RuntimeError("Ghostty is not the active application")
-
-    ghostty = active_app.appscript()
-    if not ghostty.frontmost():
-        raise RuntimeError("Ghostty is not frontmost")
-
-    window = ghostty.front_window()
-    tab = window.selected_tab()
-    return ghostty, tab.focused_terminal()
-
-
 def _perform_ghostty_action(action: str) -> None:
-    if not action:
-        raise ValueError("Ghostty action must not be empty")
-
-    try:
-        ghostty, terminal = _focused_ghostty_terminal()
-        # Ghostty returns false for valid actions that are currently a no-op,
-        # such as selecting the already-selected tab. Only an AppleScript
-        # exception means that the action could not be dispatched.
-        ghostty.perform_action(action, on=terminal)
-    except Exception as error:
-        raise RuntimeError(f"Ghostty action {action!r} failed: {error}") from error
+    perform_action(action)
 
 
 # Implement Community's shared tab contract for Ghostty.

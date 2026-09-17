@@ -2,7 +2,7 @@ app: samwho_ghostty
 -
 
 # Shared Community contracts. Their app-specific actions are implemented in
-# ghostty.py, so the common vocabulary works without an app prefix.
+# ghostty_talon.py, so the common vocabulary works without an app prefix.
 tag(): user.tabs
 tag(): user.splits
 tag(): user.command_search
