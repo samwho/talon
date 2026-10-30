@@ -1,6 +1,9 @@
 import subprocess
 
 from talon import Context, Module, actions, app, noise, ui
+
+from . import avette_client
+
 mod = Module()
 
 ctx_drag_command = Context()
@@ -213,7 +216,7 @@ class Actions:
         actions.user.samwho_pop_zoom_off()
         actions.mode.enable("user.samwho_whisper")
         actions.mode.disable("command")
-        actions.key("ctrl-shift-o")
+        _samwho_dictation_key()
         noise.register("pop", _samwho_stop_dictation)
 
     def samwho_talon_restart():
@@ -261,10 +264,19 @@ def _samwho_drag_pop(_active):
         actions.user.samwho_drag_end()
 
 
+def _samwho_dictation_key():
+    """Tap Fn using the modifier events Avette listens for."""
+    avette_client.dictation_key(True)
+    try:
+        actions.sleep("80ms")
+    finally:
+        avette_client.dictation_key(False)
+
+
 def _samwho_stop_dictation(_active):
     """Stop dictation"""
     actions.sleep(0.1)
-    actions.key("ctrl-shift-o")
+    _samwho_dictation_key()
     actions.mode.disable("user.samwho_whisper")
     actions.mode.enable("command")
     actions.user.samwho_pop_zoom_on()
