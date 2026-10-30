@@ -4,10 +4,13 @@ import shlex
 import threading
 from typing import Any
 
-from talon import Context, Module, cron, ui
+from talon import Context, Module, cron, settings, ui
 
-from ..ghostty.ghostty_client import GHOSTTY_BUNDLE, snapshot as ghostty_snapshot
+from ..ghostty.ghostty_client import GHOSTTY_BUNDLE
+from ..ghostty.ghostty_client import snapshot as ghostty_snapshot
 from ..herdr.herdr_client import HerdrError, current_pane, process_info
+from ..rex.rex_client import REX_BUNDLE, Rex
+from ..rex.rex_terminal import terminal_snapshot as rex_terminal_snapshot
 from .latest_refresh import LatestOnlyRefresh
 
 mod = Module()
@@ -16,7 +19,12 @@ os: mac
 and app.bundle: {GHOSTTY_BUNDLE}
 """
 
-_TERMINAL_BUNDLES = {GHOSTTY_BUNDLE}
+mod.apps.samwho_terminal = f"""
+os: mac
+and app.bundle: {REX_BUNDLE}
+"""
+
+_TERMINAL_BUNDLES = {GHOSTTY_BUNDLE, REX_BUNDLE}
 _UNKNOWN = "unknown"
 _NONE = "none"
 
@@ -187,7 +195,15 @@ def _program_name(command_or_title: Any) -> str:
 
 def _detect_scope() -> dict[str, str]:
     scope = _empty_scope()
-    terminal = _ghostty_terminal()
+    active_app = ui.active_app()
+    is_rex = active_app is not None and active_app.bundle == REX_BUNDLE
+    if is_rex:
+        terminal = rex_terminal_snapshot(
+            Rex(client=settings.get("user.samwho_rex_client"), timeout=0.75),
+            active_app.pid,
+        )
+    else:
+        terminal = _ghostty_terminal()
     if terminal is None:
         return scope
 
@@ -209,7 +225,7 @@ def _detect_scope() -> dict[str, str]:
 
     # Herdr's configured title starts with a stable marker and changes whenever
     # its focused virtual pane changes.
-    is_herdr = native_command.lower().startswith("herdr | ")
+    is_herdr = not is_rex and native_command.lower().startswith("herdr | ")
     if is_herdr:
         scope["terminal_program"] = "herdr"
         scope["terminal_command"] = native_command
@@ -250,7 +266,8 @@ def _publish(new_scope: dict[str, str]) -> None:
 
 
 def _error_scope(error: Exception) -> dict[str, str]:
-    print(f"terminal program query failed: {error}")
+    if _scope_store.snapshot()["terminal_program"] != _UNKNOWN:
+        print(f"terminal program query failed: {error}")
     scope = _empty_scope()
     scope["terminal_program"] = _UNKNOWN
     scope["terminal_is_herdr"] = _UNKNOWN
@@ -284,7 +301,8 @@ def _schedule_poll(*_args: object) -> None:
 
 # Ghostty updates its visible title as focus changes. Herdr's configured title
 # includes its virtual pane, so these events cover supported nesting without a
-# standing timer.
+# standing timer. Rex additionally needs polling: process and pane focus can
+# change without a macOS window-title event.
 ui.register("app_activate", _schedule_poll)
 ui.register("app_deactivate", _schedule_poll)
 ui.register("win_focus", _schedule_poll)
@@ -313,4 +331,13 @@ class TerminalFileManagerActions:
         return path
 
 
+def _poll_rex() -> None:
+    active_app = ui.active_app()
+    if active_app is not None and active_app.bundle == REX_BUNDLE:
+        # Do not invalidate an in-flight query on every tick; UI events still
+        # invalidate stale results through _schedule_poll/request.
+        _refresh.run_now()
+
+
+cron.interval("1s", _poll_rex)
 cron.after("0ms", _refresh.run_now)
